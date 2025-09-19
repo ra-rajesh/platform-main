@@ -2,6 +2,29 @@
     "Version": "2012-10-17",
     "Statement": [
         {
+            "Sid": "SsmParamsNlb",
+            "Effect": "Allow",
+            "Action": [
+                "ssm:GetParameter",
+                "ssm:GetParameters",
+                "ssm:GetParametersByPath",
+                "ssm:PutParameter",
+                "ssm:DeleteParameter",
+                "ssm:AddTagsToResource",
+                "ssm:RemoveTagsFromResource",
+                "ssm:ListTagsForResource"
+            ],
+            "Resource": "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/*"
+        },
+        {
+            "Sid": "SsmDescribeParametersAll",
+            "Effect": "Allow",
+            "Action": [
+                "ssm:DescribeParameters"
+            ],
+            "Resource": "*"
+        },
+        {
             "Sid": "TfStateBucketList",
             "Effect": "Allow",
             "Action": [
@@ -245,6 +268,17 @@
                 "iam:UntagRole"
             ],
             "Resource": "*"
+        },
+        {
+            "Sid": "IamCreateSlrElb",
+            "Effect": "Allow",
+            "Action": "iam:CreateServiceLinkedRole",
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "iam:AWSServiceName": "elasticloadbalancing.amazonaws.com"
+                }
+            }
         },
         {
             "Sid": "DescribeInstances",
