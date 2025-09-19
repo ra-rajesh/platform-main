@@ -233,6 +233,20 @@
             "Resource": "*"
         },
         {
+            "Sid": "IamRoleReadLists",
+            "Effect": "Allow",
+            "Action": [
+                "iam:GetRole",
+                "iam:GetRolePolicy",
+                "iam:ListRolePolicies",
+                "iam:ListAttachedRolePolicies",
+                "iam:ListInstanceProfilesForRole",
+                "iam:TagRole",
+                "iam:UntagRole"
+            ],
+            "Resource": "*"
+        },
+        {
             "Sid": "DescribeInstances",
             "Effect": "Allow",
             "Action": [

@@ -46,3 +46,16 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+
+variable "user_data" {
+  type    = string
+  default = ""
+}
+variable "ec2_ssm_role_name" {
+  type    = string
+  default = null
+}
+variable "ec2_ssm_profile_name" {
+  type    = string
+  default = null
+}

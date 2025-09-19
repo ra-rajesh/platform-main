@@ -47,8 +47,9 @@ locals {
   EOF
 
   user_data_final = (
-    var.user_data != null && trimspace(var.user_data) != ""
+    length(trimspace(var.user_data)) > 0
   ) ? var.user_data : local.default_user_data
+
 }
 
 resource "aws_instance" "idlms_ec2" {

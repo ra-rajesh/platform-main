@@ -5,26 +5,20 @@ terraform {
   }
 }
 
-# Normalize aliases so callers can pass either style
-locals {
-  final_existing_role_name = coalesce(var.existing_role_name, var.existing_iam_role_name)
-  final_existing_profile   = coalesce(var.existing_instance_profile_name, var.existing_iam_instance_profile_name)
-}
-
-# Look up existing if provided
+# Look up existing only if names are provided
 data "aws_iam_role" "existing" {
-  count = local.final_existing_role_name == null ? 0 : 1
-  name  = local.final_existing_role_name
+  count = var.existing_role_name == null ? 0 : 1
+  name  = var.existing_role_name
 }
 
 data "aws_iam_instance_profile" "existing" {
-  count = local.final_existing_profile == null ? 0 : 1
-  name  = local.final_existing_profile
+  count = var.existing_instance_profile_name == null ? 0 : 1
+  name  = var.existing_instance_profile_name
 }
 
 # Create only when not reusing
 data "aws_iam_policy_document" "assume_role" {
-  count = local.final_existing_role_name == null ? 1 : 0
+  count = var.existing_role_name == null ? 1 : 0
 
   statement {
     effect  = "Allow"
@@ -38,21 +32,21 @@ data "aws_iam_policy_document" "assume_role" {
 }
 
 resource "aws_iam_role" "this" {
-  count              = local.final_existing_role_name == null ? 1 : 0
+  count              = var.existing_role_name == null ? 1 : 0
   name               = "${var.name}-role"
   assume_role_policy = data.aws_iam_policy_document.assume_role[0].json
   tags               = var.tags
 }
 
 resource "aws_iam_role_policy_attachment" "ssm_core" {
-  count      = local.final_existing_role_name == null ? 1 : 0
+  count      = var.existing_role_name == null ? 1 : 0
   role       = aws_iam_role.this[0].name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 resource "aws_iam_instance_profile" "this" {
-  count = local.final_existing_profile == null ? 1 : 0
+  count = var.existing_instance_profile_name == null ? 1 : 0
   name  = "${var.name}-instance-profile"
-  role  = local.final_existing_role_name == null ? aws_iam_role.this[0].name : data.aws_iam_role.existing[0].name
+  role  = var.existing_role_name == null ? aws_iam_role.this[0].name : data.aws_iam_role.existing[0].name
   tags  = var.tags
 }
