@@ -1,0 +1,27 @@
+{
+  "access_log_group": {
+    "sensitive": false,
+    "type": "string",
+    "value": "/aws/apigw/IDLMS-Stage/stage/access"
+  },
+  "invoke_url": {
+    "sensitive": false,
+    "type": "string",
+    "value": "https://vg2fcxypzj.execute-api.ap-south-1.amazonaws.com/stage"
+  },
+  "rest_api_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "vg2fcxypzj"
+  },
+  "stage_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "stage"
+  },
+  "vpc_link_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "hda1q1"
+  }
+}

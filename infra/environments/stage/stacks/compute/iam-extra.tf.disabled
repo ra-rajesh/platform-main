@@ -1,0 +1,46 @@
+data "aws_caller_identity" "current" {}
+
+locals {
+  # If docker_artifact_bucket is set (non-empty after trim), use it; else auto-derive from env_name + account id
+  artifacts_bucket = length(trimspace(var.docker_artifact_bucket)) > 0 ? var.docker_artifact_bucket : "idlms-${var.env_name}-website-built-artifact-${data.aws_caller_identity.current.account_id}"
+}
+
+data "aws_iam_policy_document" "describe" {
+  statement {
+    actions   = ["elasticloadbalancing:Describe*", "ec2:Describe*"]
+    resources = ["*"]
+  }
+}
+
+data "aws_iam_policy_document" "artifacts_read" {
+  statement {
+    actions   = ["s3:ListBucket"]
+    resources = ["arn:aws:s3:::${local.artifacts_bucket}"]
+  }
+  statement {
+    actions   = ["s3:GetObject"]
+    resources = ["arn:aws:s3:::${local.artifacts_bucket}/*"]
+  }
+}
+
+data "aws_iam_policy_document" "ssm_get_parameter" {
+  statement {
+    actions   = ["ssm:GetParameters", "ssm:GetParameterHistory", "ssm:GetParameter"]
+    resources = ["arn:aws:ssm:${var.region}:${data.aws_caller_identity.current.account_id}:parameter/idlms/cloudwatch/agent/config"]
+  }
+}
+
+resource "aws_iam_policy" "describe" {
+  name   = "stage-ec2-describe"
+  policy = data.aws_iam_policy_document.describe.json
+}
+
+resource "aws_iam_policy" "ssm_get_parameter" {
+  name   = "stage-ssm-get-parameter"
+  policy = data.aws_iam_policy_document.ssm_get_parameter.json
+}
+
+resource "aws_iam_policy" "artifacts_read" {
+  name   = "stage-artifacts-read"
+  policy = data.aws_iam_policy_document.artifacts_read.json
+}

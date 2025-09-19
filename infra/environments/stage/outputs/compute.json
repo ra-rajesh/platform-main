@@ -1,0 +1,27 @@
+{
+  "iam_role_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "stage-ec2-ssm-role"
+  },
+  "instance_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "i-02112a443be090a7e"
+  },
+  "instance_private_ip": {
+    "sensitive": false,
+    "type": "string",
+    "value": "10.10.10.226"
+  },
+  "instance_profile_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "stage-ec2-ssm-instance-profile"
+  },
+  "security_group_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "sg-01194326e003149aa"
+  }
+}

@@ -1,0 +1,51 @@
+name: Deploy (stage)
+
+on:
+  push:
+    branches: [ "main" ]   # EDIT if you deploy from another branch
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ap-south-1
+      INSTANCE_TAG_NAME: stage-idlms-app
+      ARTIFACT_S3_BUCKET: idlms-terraform-stage-website-built-artifact-592776312448
+      ARTIFACT_KEY: website/latest.tar.gz  # EDIT to your key
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::<ACCOUNT_ID>:role/stage-gha-oidc   # <<< EDIT to the output gha_role_arn
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve EC2 instance by tag
+        id: inst
+        run: |
+          IID=$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=${INSTANCE_TAG_NAME}" "Name=instance-state-name,Values=running" \
+            --query 'Reservations[].Instances[].InstanceId' --output text --region "$AWS_REGION")
+          echo "iid=$IID" >> "$GITHUB_OUTPUT"
+
+      - name: Send deploy command via SSM
+        run: |
+          aws ssm send-command \
+            --instance-ids "${{ steps.inst.outputs.iid }}" \
+            --document-name "AWS-RunShellScript" \
+            --comment "Deploy website from S3" \
+            --parameters commands='[
+              "set -e",
+              "mkdir -p /opt/app",
+              "aws s3 cp s3://'"$ARTIFACT_S3_BUCKET"'/'"$ARTIFACT_KEY"' /tmp/app.tar.gz",
+              "tar -xzf /tmp/app.tar.gz -C /opt/app",
+              "systemctl restart nginx || true"
+            ]' \
+            --region "$AWS_REGION" \
+            --output text

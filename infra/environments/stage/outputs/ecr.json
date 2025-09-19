@@ -1,0 +1,36 @@
+{
+  "repository_arns": {
+    "sensitive": false,
+    "type": [
+      "tuple",
+      [
+        "string"
+      ]
+    ],
+    "value": [
+      "arn:aws:ecr:ap-south-1:592776312448:repository/stage-idlms-api"
+    ]
+  },
+  "repository_names": {
+    "sensitive": false,
+    "type": [
+      "list",
+      "string"
+    ],
+    "value": [
+      "stage-idlms-api"
+    ]
+  },
+  "repository_urls": {
+    "sensitive": false,
+    "type": [
+      "tuple",
+      [
+        "string"
+      ]
+    ],
+    "value": [
+      "592776312448.dkr.ecr.ap-south-1.amazonaws.com/stage-idlms-api"
+    ]
+  }
+}

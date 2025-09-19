@@ -1,0 +1,22 @@
+{
+  "bucket_arn": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:s3:::idlms-stage-website-built-artifact-592776312448"
+  },
+  "bucket_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "idlms-stage-website-built-artifact-592776312448"
+  },
+  "ssm_bucket_arn_param": {
+    "sensitive": false,
+    "type": "string",
+    "value": "/idlms/s3/stage/stage/s3/website-built-artifact/bucket_arn"
+  },
+  "ssm_bucket_name_param": {
+    "sensitive": false,
+    "type": "string",
+    "value": "/idlms/s3/stage/stage/s3/website-built-artifact/bucket_name"
+  }
+}

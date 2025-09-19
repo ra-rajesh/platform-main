@@ -1,0 +1,41 @@
+{
+  "lb_arn": {
+    "sensitive": false,
+    "type": "string",
+    "value": "arn:aws:elasticloadbalancing:ap-south-1:592776312448:loadbalancer/net/stage-stage-nlb/d4252878a2c7a35d"
+  },
+  "lb_dns_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "stage-stage-nlb-d4252878a2c7a35d.elb.ap-south-1.amazonaws.com"
+  },
+  "lb_zone_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "ZVDDRBQ08TROA"
+  },
+  "listener_arns": {
+    "sensitive": false,
+    "type": [
+      "object",
+      {
+        "4000": "string"
+      }
+    ],
+    "value": {
+      "4000": "arn:aws:elasticloadbalancing:ap-south-1:592776312448:listener/net/stage-stage-nlb/d4252878a2c7a35d/84cd0a61a6df184f"
+    }
+  },
+  "target_group_arns": {
+    "sensitive": false,
+    "type": [
+      "object",
+      {
+        "4000": "string"
+      }
+    ],
+    "value": {
+      "4000": "arn:aws:elasticloadbalancing:ap-south-1:592776312448:targetgroup/stage-stage-nlb-4000/0c27a596b5c8df7a"
+    }
+  }
+}
