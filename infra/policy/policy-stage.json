@@ -1,0 +1,207 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "TfStateBucketList",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation",
+                "s3:ListBucketMultipartUploads"
+            ],
+            "Resource": "arn:aws:s3:::stage-btl-idlms-backend-api-tfstate-881490099206"
+        },
+        {
+            "Sid": "TfStateObjectsRW",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:GetObjectVersion",
+                "s3:AbortMultipartUpload",
+                "s3:ListMultipartUploadParts"
+            ],
+            "Resource": "arn:aws:s3:::stage-btl-idlms-backend-api-tfstate-881490099206/*"
+        },
+        {
+            "Sid": "TfLocks",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:DescribeTable",
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:UpdateItem"
+            ],
+            "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/platform-main-terraform-locks"
+        },
+        {
+            "Sid": "TfLocksExtras",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:DescribeContinuousBackups",
+                "dynamodb:DescribeTimeToLive",
+                "dynamodb:ListTagsOfResource",
+                "dynamodb:UpdateContinuousBackups",
+                "dynamodb:UpdateTimeToLive",
+                "dynamodb:TagResource",
+                "dynamodb:UntagResource"
+            ],
+            "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/platform-main-terraform-locks"
+        },
+        {
+            "Sid": "TfLocksCreateOnce",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:CreateTable",
+                "dynamodb:ListTables"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "TfLocksDelete",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:DeleteTable"
+            ],
+            "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/platform-main-terraform-locks"
+        },
+        {
+            "Sid": "EcrAuth",
+            "Effect": "Allow",
+            "Action": [
+                "ecr:GetAuthorizationToken"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "EcrRepoOps",
+            "Effect": "Allow",
+            "Action": [
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:PutImage",
+                "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload",
+                "ecr:DescribeRepositories",
+                "ecr:DescribeImages",
+                "ecr:GetRepositoryPolicy",
+                "ecr:ListImages",
+                "ecr:CreateRepository",
+                "ecr:DeleteRepository",
+                "ecr:BatchDeleteImage",
+                "ecr:DeleteRepositoryPolicy"
+            ],
+            "Resource": [
+                "arn:aws:ecr:ap-south-1:881490099206:repository/stage-idlms-api",
+                "arn:aws:ecr:ap-south-1:881490099206:repository/stage-idlms-test",
+                "arn:aws:ecr:ap-south-1:881490099206:repository/license-api-stage"
+            ]
+        },
+        {
+            "Sid": "SsmParams",
+            "Effect": "Allow",
+            "Action": [
+                "ssm:GetParameter",
+                "ssm:GetParameters",
+                "ssm:GetParametersByPath",
+                "ssm:DescribeParameters",
+                "ssm:PutParameter",
+                "ssm:DeleteParameter",
+                "ssm:DeleteParameters"
+            ],
+            "Resource": [
+                "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/shared/*",
+                "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/license-api/*",
+                "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/reuse/*",
+                "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/test/*"
+            ]
+        },
+        {
+            "Sid": "ArtifactsList",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": "arn:aws:s3:::idlms-stage-built-artifact-881490099206"
+        },
+        {
+            "Sid": "ArtifactsRW",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:GetObjectVersion"
+            ],
+            "Resource": "arn:aws:s3:::idlms-stage-built-artifact-881490099206/*"
+        },
+        {
+            "Sid": "Ec2Vpc",
+            "Effect": "Allow",
+            "Action": "ec2:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "Elbv2",
+            "Effect": "Allow",
+            "Action": "elasticloadbalancing:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "ApiGw",
+            "Effect": "Allow",
+            "Action": "apigateway:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "Logs",
+            "Effect": "Allow",
+            "Action": "logs:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "CloudWatch",
+            "Effect": "Allow",
+            "Action": "cloudwatch:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "S3Infra",
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "IamInstanceProfiles",
+            "Effect": "Allow",
+            "Action": [
+                "iam:CreateRole",
+                "iam:DeleteRole",
+                "iam:GetRole",
+                "iam:PassRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:CreateInstanceProfile",
+                "iam:DeleteInstanceProfile",
+                "iam:AddRoleToInstanceProfile",
+                "iam:RemoveRoleFromInstanceProfile"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "DescribeInstances",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeInstances"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
