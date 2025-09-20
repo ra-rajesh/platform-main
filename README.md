@@ -11,3 +11,8 @@ export AWS_REGION=ap-south-1
 
 # 4) Re-run init
 terraform init -upgrade -reconfigure
+
+Destroy
+MINGW64 /e/Practice/NDZ/platform-main/infra/environments/stage/stacks (main) 
+$ (cd rest-api && terraform destroy -var-file=stage.tfvars -auto-approve)
+1) rest-api → 2) compute → 3) ssm → 4) nlb → 5) ecr → 6) s3 → 7) network.
