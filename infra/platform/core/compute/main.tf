@@ -24,11 +24,11 @@ module "sg_app" {
 
 # IAM (reuse existing names if provided)
 module "iam_ssm" {
-  source = "../../modules/iam/ssm_instance"
-  name   = "${var.env_name}-ec2-ssm"
+  source                         = "../../modules/iam/ssm_instance"
+  name                           = "${var.env_name}-ec2-ssm"
   existing_role_name             = var.ec2_ssm_role_name
   existing_instance_profile_name = var.ec2_ssm_profile_name
-  tags   = var.tags
+  tags                           = var.tags
 }
 
 # EC2 MODULE — expects: security_group_ids, instance_profile_name

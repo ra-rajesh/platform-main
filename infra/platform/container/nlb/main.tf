@@ -49,7 +49,7 @@ resource "aws_lb_target_group" "multi" {
 resource "aws_lb_listener" "this" {
   for_each          = aws_lb_target_group.multi
   load_balancer_arn = aws_lb.this.arn
-  port              = tonumber(each.key)    # <-- FIX: use the port key
+  port              = tonumber(each.key) # <-- FIX: use the port key
   protocol          = var.protocol
 
   default_action {

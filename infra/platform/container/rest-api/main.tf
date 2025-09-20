@@ -224,7 +224,7 @@ resource "aws_api_gateway_method_settings" "all" {
 
   settings {
     metrics_enabled    = var.execution_metrics_enabled
-    logging_level      = "INFO"                       # or "ERROR"
+    logging_level      = "INFO" # or "ERROR"
     data_trace_enabled = var.execution_data_trace
   }
 

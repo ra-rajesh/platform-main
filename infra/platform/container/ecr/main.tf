@@ -29,21 +29,21 @@ locals {
 # When ssm_prefix is set, publish per-repo details using logical names for the key
 resource "aws_ssm_parameter" "repo_url" {
   for_each = var.ssm_prefix == "" ? {} : { for n in var.repositories : n => n }
-  name  = "${var.ssm_prefix}/${each.key}/repository_url"
-  type  = "String"
-  value = module.repo[local.repo_map[each.key]].repository_url
+  name     = "${var.ssm_prefix}/${each.key}/repository_url"
+  type     = "String"
+  value    = module.repo[local.repo_map[each.key]].repository_url
 }
 
 resource "aws_ssm_parameter" "repo_arn" {
   for_each = var.ssm_prefix == "" ? {} : { for n in var.repositories : n => n }
-  name  = "${var.ssm_prefix}/${each.key}/repository_arn"
-  type  = "String"
-  value = module.repo[local.repo_map[each.key]].repository_arn
+  name     = "${var.ssm_prefix}/${each.key}/repository_arn"
+  type     = "String"
+  value    = module.repo[local.repo_map[each.key]].repository_arn
 }
 
 resource "aws_ssm_parameter" "repo_name" {
   for_each = var.ssm_prefix == "" ? {} : { for n in var.repositories : n => n }
-  name  = "${var.ssm_prefix}/${each.key}/repository_name"
-  type  = "String"
-  value = local.repo_map[each.key]
+  name     = "${var.ssm_prefix}/${each.key}/repository_name"
+  type     = "String"
+  value    = local.repo_map[each.key]
 }

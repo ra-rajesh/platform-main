@@ -67,10 +67,10 @@ resource "aws_lb_target_group" "multi" {
 }
 
 resource "aws_lb_listener" "this" {
-  for_each           = local.port_map
-  load_balancer_arn  = aws_lb.this.arn
-  port               = each.value
-  protocol           = "TCP"
+  for_each          = local.port_map
+  load_balancer_arn = aws_lb.this.arn
+  port              = each.value
+  protocol          = "TCP"
   default_action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.multi[each.key].arn
