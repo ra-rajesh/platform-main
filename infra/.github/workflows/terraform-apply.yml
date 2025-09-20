@@ -78,7 +78,7 @@ jobs:
               exit 1
             fi
 
-            # Optional: per-env tfvars (use if present)
+            # Optional: per-env tfvars 
             TFVARS_FLAG=""
             if [[ -f "${WD}/${ENV}.tfvars" ]]; then
               TFVARS_FLAG="-var-file=${ENV}.tfvars"
