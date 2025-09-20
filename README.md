@@ -13,6 +13,42 @@ export AWS_REGION=ap-south-1
 terraform init -upgrade -reconfigure
 
 Destroy
-MINGW64 /e/Practice/NDZ/platform-main/infra/environments/stage/stacks (main) 
-$ (cd rest-api && terraform destroy -var-file=stage.tfvars -auto-approve)
-1) rest-api → 2) compute → 3) ssm → 4) nlb → 5) ecr → 6) s3 → 7) network.
+# 1) CloudWatch
+cd infra/environments/stage/stacks/cloudwatch
+terraform init -reconfigure -backend-config=backend-stage.hcl
+terraform destroy -var-file=stage.tfvars -auto-approve
+
+# 2) REST API
+cd ../rest-api
+terraform init -reconfigure -backend-config=backend-stage.hcl
+terraform destroy -var-file=stage.tfvars -auto-approve
+
+# 3) SSM
+cd ../ssm
+terraform init -reconfigure -backend-config=backend-stage.hcl
+terraform destroy -var-file=stage.tfvars -auto-approve
+
+# 4) NLB
+cd ../nlb
+terraform init -reconfigure -backend-config=backend-stage.hcl
+terraform destroy -var-file=stage.tfvars -auto-approve
+
+# 5) Compute
+cd ../compute
+terraform init -reconfigure -backend-config=backend-stage.hcl
+terraform destroy -var-file=stage.tfvars -auto-approve
+
+# 6) ECR
+cd ../ecr
+terraform init -reconfigure -backend-config=backend-stage.hcl
+terraform destroy -var-file=stage.tfvars -auto-approve
+
+# 7) S3 (artifact bucket must be empty or force_destroy=true)
+cd ../s3
+terraform init -reconfigure -backend-config=backend-stage.hcl
+terraform destroy -var-file=stage.tfvars -auto-approve
+
+# 8) Network (VPC last)
+cd ../network
+terraform init -reconfigure -backend-config=backend-stage.hcl
+terraform destroy -var-file=stage.tfvars -auto-approve

@@ -13,11 +13,11 @@ on:
         description: Stack to destroy (all or a single stack)
         required: true
         type: choice
-        options: [all, network, compute, ecr, s3, nlb, ssm, rest-api, cloudwatch]
+        options: [all, cloudwatch, rest-api, ssm, nlb, compute, ecr, s3, network]
         default: all
 
 concurrency:
-  group: tf-${{ github.workflow }}-${{ github.ref_name }}
+  group: tf-destroy-${{ inputs.env }}-${{ inputs.stack }}-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -29,13 +29,12 @@ jobs:
     env:
       AWS_REGION: ap-south-1
       TF_IN_AUTOMATION: "true"
-
-      AWS_ACCESS_KEY_ID_DEV:     ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
-      AWS_SECRET_ACCESS_KEY_DEV: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
-      AWS_ACCESS_KEY_ID_STAGE:   ${{ secrets.AWS_ACCESS_KEY_ID_STAGE }}
+      AWS_ACCESS_KEY_ID_DEV:       ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+      AWS_SECRET_ACCESS_KEY_DEV:   ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+      AWS_ACCESS_KEY_ID_STAGE:     ${{ secrets.AWS_ACCESS_KEY_ID_STAGE }}
       AWS_SECRET_ACCESS_KEY_STAGE: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGE }}
-      AWS_ACCESS_KEY_ID_PROD:    ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
-      AWS_SECRET_ACCESS_KEY_PROD: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+      AWS_ACCESS_KEY_ID_PROD:      ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+      AWS_SECRET_ACCESS_KEY_PROD:  ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
 
     steps:
       - uses: actions/checkout@v4
@@ -70,14 +69,14 @@ jobs:
         with:
           terraform_version: 1.9.5
 
-      - name: Destroy stacks in reverse order
+      - name: Destroy stacks in safe order
         shell: bash
         run: |
           set -euo pipefail
-
           ENV="${{ inputs.env }}"
           SEL="${{ inputs.stack }}"
 
+          # Safe destroy order (downstream first)
           ORDER=( cloudwatch rest-api ssm nlb compute ecr s3 network )
           if [[ "$SEL" != "all" ]]; then ORDER=("$SEL"); fi
 
@@ -87,20 +86,26 @@ jobs:
               echo "::warning::Skipping $WD (not found)"
               continue
             fi
-
             if [[ ! -f "${WD}/backend-${ENV}.hcl" ]]; then
               echo "::error::Missing ${WD}/backend-${ENV}.hcl"
               exit 1
             fi
-
             TFVARS_FLAG=""
             if [[ -f "${WD}/${ENV}.tfvars" ]]; then
               TFVARS_FLAG="-var-file=${ENV}.tfvars"
+            else
+              echo "::notice::No ${WD}/${ENV}.tfvars; relying on defaults/vars"
             fi
 
             echo "=== INIT: $WD"
             terraform -chdir="$WD" init -input=false -reconfigure -backend-config="backend-${ENV}.hcl"
 
+            echo "=== PLAN (destroy): $WD"
+            terraform -chdir="$WD" plan -destroy -input=false $TFVARS_FLAG -var="env_name=${ENV}" -out=tfplan
+
             echo "=== DESTROY: $WD"
-            terraform -chdir="$WD" destroy -input=false -auto-approve $TFVARS_FLAG -var="env_name=${ENV}"
+            terraform -chdir="$WD" apply -input=false -auto-approve tfplan || {
+              echo "::error::Destroy failed for $WD"
+              exit 1
+            }
           done
