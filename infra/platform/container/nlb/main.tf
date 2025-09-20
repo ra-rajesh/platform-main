@@ -66,22 +66,25 @@ resource "aws_lb_target_group_attachment" "instance_multi" {
 }
 
 resource "aws_ssm_parameter" "lb_arn" {
-  count = var.ssm_prefix == "" ? 0 : 1
-  name  = "${var.ssm_prefix}/lb_arn"
-  type  = "String"
-  value = aws_lb.this.arn
+  count     = var.ssm_prefix == "" ? 0 : 1
+  name      = "${var.ssm_prefix}/lb_arn"
+  type      = "String"
+  value     = aws_lb.this.arn
+  overwrite = true
 }
 
 resource "aws_ssm_parameter" "lb_dns" {
-  count = var.ssm_prefix == "" ? 0 : 1
-  name  = "${var.ssm_prefix}/lb_dns_name"
-  type  = "String"
-  value = aws_lb.this.dns_name
+  count     = var.ssm_prefix == "" ? 0 : 1
+  name      = "${var.ssm_prefix}/lb_dns_name"
+  type      = "String"
+  value     = aws_lb.this.dns_name
+  overwrite = true
 }
 
 resource "aws_ssm_parameter" "lb_zone" {
-  count = var.ssm_prefix == "" ? 0 : 1
-  name  = "${var.ssm_prefix}/lb_zone_id"
-  type  = "String"
-  value = aws_lb.this.zone_id
+  count     = var.ssm_prefix == "" ? 0 : 1
+  name      = "${var.ssm_prefix}/lb_zone_id"
+  type      = "String"
+  value     = aws_lb.this.zone_id
+  overwrite = true
 }
