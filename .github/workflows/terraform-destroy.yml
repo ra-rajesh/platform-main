@@ -92,21 +92,21 @@ jobs:
               exit 1
             fi
 
-            # 🧹 Extra cleanup ONLY for the 'compute' stack:
-            # Delete orphaned instance profile/role so TF doesn't hit EntityAlreadyExists
+            # 🧹 CLEANUP: special handling for certain stacks before destroy
+
+            # 1) COMPUTE — delete orphaned instance profile & role to avoid 'EntityAlreadyExists' on future applies
             if [[ "$S" == "compute" ]]; then
-              echo "=== CLEANUP: IAM instance profile/role (${ENV})"
+              echo "=== CLEANUP (compute): IAM instance profile/role (${ENV})"
               PROFILE_NAME="${ENV}-ec2-ssm-instance-profile"
               ROLE_NAME="${ENV}-ec2-ssm-role"
 
-              # If profile exists, detach any EC2 associations, remove role from profile, then delete profile
               if aws iam get-instance-profile --instance-profile-name "$PROFILE_NAME" >/dev/null 2>&1; then
                 echo "Found instance profile: $PROFILE_NAME"
 
                 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
                 PROFILE_ARN="arn:aws:iam::${ACCOUNT_ID}:instance-profile/${PROFILE_NAME}"
 
-                # Disassociate from any instances (region-specific call)
+                # Disassociate from any instances (region-specific)
                 ASSOC_IDS="$(aws ec2 describe-iam-instance-profile-associations \
                   --region "${AWS_REGION}" \
                   --filters Name=iam-instance-profile.arn,Values="${PROFILE_ARN}" \
@@ -158,6 +158,60 @@ jobs:
               else
                 echo "Role not present: $ROLE_NAME (nothing to delete)"
               fi
+            fi
+
+            # 2) NLB — delete existing LB & any TGs (defensive cleanup if state is missing)
+            if [[ "$S" == "nlb" ]]; then
+              echo "=== CLEANUP (nlb): deleting existing NLB & TGs for ${ENV}"
+              NLB_NAME="${ENV}-idlms-nlb"
+
+              # Look up LB ARN by name
+              LB_ARN="$(aws elbv2 describe-load-balancers \
+                --region "${AWS_REGION}" \
+                --names "${NLB_NAME}" \
+                --query 'LoadBalancers[0].LoadBalancerArn' \
+                --output text 2>/dev/null || true)"
+
+              if [[ -n "$LB_ARN" && "$LB_ARN" != "None" ]]; then
+                echo "Found NLB: $NLB_NAME ($LB_ARN)"
+
+                # Delete listeners first
+                LISTENERS="$(aws elbv2 describe-listeners \
+                  --region "${AWS_REGION}" \
+                  --load-balancer-arn "${LB_ARN}" \
+                  --query 'Listeners[].ListenerArn' \
+                  --output text 2>/dev/null || true)"
+                for L in $LISTENERS; do
+                  echo "Deleting listener: $L"
+                  aws elbv2 delete-listener --region "${AWS_REGION}" --listener-arn "$L" || true
+                done
+
+                # Delete the NLB
+                echo "Deleting load balancer: $LB_ARN"
+                aws elbv2 delete-load-balancer --region "${AWS_REGION}" --load-balancer-arn "${LB_ARN}" || true
+
+                # Wait till deleted (best-effort)
+                aws elbv2 wait load-balancers-deleted --region "${AWS_REGION}" --load-balancer-arns "${LB_ARN}" || true
+              else
+                echo "No NLB found named ${NLB_NAME} (skip LB delete)"
+              fi
+
+              # Delete TGs that start with "<env>-idlms-nlb-"
+              TG_PREFIX="${NLB_NAME}-"
+              echo "Scanning for TGs with prefix: ${TG_PREFIX}"
+              TG_LIST="$(aws elbv2 describe-target-groups \
+                --region "${AWS_REGION}" \
+                --query 'TargetGroups[].{n:TargetGroupName,a:TargetGroupArn}' \
+                --output text || true)"
+
+              # TG_LIST lines are "name arn"
+              while read -r TG_NAME TG_ARN; do
+                [[ -z "${TG_NAME:-}" || -z "${TG_ARN:-}" ]] && continue
+                if [[ "$TG_NAME" == ${TG_PREFIX}* ]]; then
+                  echo "Deleting target group: $TG_NAME ($TG_ARN)"
+                  aws elbv2 delete-target-group --region "${AWS_REGION}" --target-group-arn "$TG_ARN" || true
+                fi
+              done <<< "$TG_LIST"
             fi
 
             TFVARS_FLAG=""
