@@ -297,6 +297,32 @@
                 "ec2:DescribeInstances"
             ],
             "Resource": "*"
+        },
+        {
+            "Sid": "SnsCreateList",
+            "Effect": "Allow",
+            "Action": [
+                "sns:CreateTopic",
+                "sns:ListTopics"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "SnsOpsStage",
+            "Effect": "Allow",
+            "Action": [
+                "sns:Subscribe",
+                "sns:Unsubscribe",
+                "sns:Publish",
+                "sns:GetTopicAttributes",
+                "sns:SetTopicAttributes",
+                "sns:DeleteTopic",
+                "sns:ListSubscriptionsByTopic",
+                "sns:TagResource",
+                "sns:UntagResource",
+                "sns:ListTagsForResource"
+            ],
+            "Resource": "arn:aws:sns:ap-south-1:881490099206:stage-idlms-alarms"
         }
     ]
 }

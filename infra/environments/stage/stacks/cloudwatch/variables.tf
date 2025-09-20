@@ -7,35 +7,48 @@ variable "region" {
 }
 
 variable "nlb_ssm_prefix" {
-  type = string
+  type = string # e.g. /idlms/nlb/stage
 }
 
-variable "rest_state_bucket" {
+variable "alert_email" {
+  description = "Email address to subscribe to SNS; leave blank to skip."
+  type        = string
+  default     = ""
+}
+
+variable "instance_name_tag" {
+  description = "Value of the Name tag to find your app instance (e.g., stage-idlms-ec2)"
+  type        = string
+}
+
+variable "api_name" {
   type    = string
-  default = "stage-btl-idlms-repo-backend-api-tfstate-592776312448"
+  default = "idlms-api"
 }
 
-variable "rest_state_region" {
+variable "api_stage" {
   type    = string
-  default = "ap-south-1"
+  default = "stage"
 }
 
-variable "rest_state_key" {
-  type    = string
-  default = "stage/rest-api/terraform.tfstate"
-}
-
-variable "port" {
-  type    = number
-  default = 4000
-}
-
-variable "alarm_actions" {
-  type    = list(string)
-  default = []
-}
-
-variable "tags" {
+variable "common_tags" {
   type    = map(string)
   default = {}
+}
+
+# Controls whether we read NLB/TG info from SSM or use overrides.
+variable "use_ssm" {
+  type    = bool
+  default = true
+}
+
+# If use_ssm = false, set these overrides:
+variable "lb_arn_override" {
+  type    = string
+  default = ""
+}
+
+variable "tg_arns_json_override" {
+  type    = string
+  default = ""
 }

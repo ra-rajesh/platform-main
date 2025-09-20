@@ -18,4 +18,8 @@ resource "aws_ssm_parameter" "this" {
   overwrite   = var.overwrite
   description = "Published by Terraform"
   tags        = var.common_tags
+  lifecycle {
+    # Prevent provider from attempting to update description on existing params
+    ignore_changes = [description]
+  }
 }
