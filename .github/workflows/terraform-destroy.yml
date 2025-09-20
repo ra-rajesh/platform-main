@@ -24,29 +24,46 @@ jobs:
   destroy:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
 
     env:
       AWS_REGION: ap-south-1
       TF_IN_AUTOMATION: "true"
 
+      AWS_ACCESS_KEY_ID_DEV:     ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+      AWS_SECRET_ACCESS_KEY_DEV: ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+      AWS_ACCESS_KEY_ID_STAGE:   ${{ secrets.AWS_ACCESS_KEY_ID_STAGE }}
+      AWS_SECRET_ACCESS_KEY_STAGE: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGE }}
+      AWS_ACCESS_KEY_ID_PROD:    ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+      AWS_SECRET_ACCESS_KEY_PROD: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select AWS Role for env
+      - name: Select AWS access keys for env
+        shell: bash
         run: |
           case "${{ inputs.env }}" in
-            dev)   echo "ROLE=${{ secrets.AWS_ROLE_ARN_DEV }}"   >> $GITHUB_ENV ;;
-            stage) echo "ROLE=${{ secrets.AWS_ROLE_ARN_STAGE }}" >> $GITHUB_ENV ;;
-            prod)  echo "ROLE=${{ secrets.AWS_ROLE_ARN_PROD }}"  >> $GITHUB_ENV ;;
+            dev)
+              echo "AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID_DEV }}" >> $GITHUB_ENV
+              echo "AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY_DEV }}" >> $GITHUB_ENV
+              ;;
+            stage)
+              echo "AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID_STAGE }}" >> $GITHUB_ENV
+              echo "AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY_STAGE }}" >> $GITHUB_ENV
+              ;;
+            prod)
+              echo "AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID_PROD }}" >> $GITHUB_ENV
+              echo "AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY_PROD }}" >> $GITHUB_ENV
+              ;;
           esac
 
-      - name: Configure AWS credentials (OIDC)
+      - name: Configure AWS credentials (access keys)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ env.ROLE }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id:     ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
