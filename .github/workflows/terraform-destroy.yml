@@ -73,6 +73,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
           ENV="${{ inputs.env }}"
           SEL="${{ inputs.stack }}"
 
@@ -90,6 +91,75 @@ jobs:
               echo "::error::Missing ${WD}/backend-${ENV}.hcl"
               exit 1
             fi
+
+            # 🧹 Extra cleanup ONLY for the 'compute' stack:
+            # Delete orphaned instance profile/role so TF doesn't hit EntityAlreadyExists
+            if [[ "$S" == "compute" ]]; then
+              echo "=== CLEANUP: IAM instance profile/role (${ENV})"
+              PROFILE_NAME="${ENV}-ec2-ssm-instance-profile"
+              ROLE_NAME="${ENV}-ec2-ssm-role"
+
+              # If profile exists, detach any EC2 associations, remove role from profile, then delete profile
+              if aws iam get-instance-profile --instance-profile-name "$PROFILE_NAME" >/dev/null 2>&1; then
+                echo "Found instance profile: $PROFILE_NAME"
+
+                ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+                PROFILE_ARN="arn:aws:iam::${ACCOUNT_ID}:instance-profile/${PROFILE_NAME}"
+
+                # Disassociate from any instances (region-specific call)
+                ASSOC_IDS="$(aws ec2 describe-iam-instance-profile-associations \
+                  --region "${AWS_REGION}" \
+                  --filters Name=iam-instance-profile.arn,Values="${PROFILE_ARN}" \
+                  --query 'IamInstanceProfileAssociations[].AssociationId' \
+                  --output text || true)"
+                for AID in $ASSOC_IDS; do
+                  echo "Disassociating instance profile: $AID"
+                  aws ec2 disassociate-iam-instance-profile --region "${AWS_REGION}" --association-id "$AID" || true
+                done
+
+                # Remove any attached roles from the profile
+                ROLE_NAMES="$(aws iam get-instance-profile \
+                  --instance-profile-name "$PROFILE_NAME" \
+                  --query 'InstanceProfile.Roles[].RoleName' \
+                  --output text || true)"
+                for RN in $ROLE_NAMES; do
+                  echo "Removing role $RN from instance profile $PROFILE_NAME"
+                  aws iam remove-role-from-instance-profile \
+                    --instance-profile-name "$PROFILE_NAME" \
+                    --role-name "$RN" || true
+                done
+
+                echo "Deleting instance profile: $PROFILE_NAME"
+                aws iam delete-instance-profile --instance-profile-name "$PROFILE_NAME" || true
+              else
+                echo "Instance profile not present: $PROFILE_NAME (nothing to delete)"
+              fi
+
+              # Optionally delete the role too (safe if it exists)
+              if aws iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
+                echo "Cleaning up role: $ROLE_NAME"
+
+                # Detach managed policies
+                for P in $(aws iam list-attached-role-policies --role-name "$ROLE_NAME" \
+                          --query 'AttachedPolicies[].PolicyArn' --output text || true); do
+                  echo "Detaching $P from $ROLE_NAME"
+                  aws iam detach-role-policy --role-name "$ROLE_NAME" --policy-arn "$P" || true
+                done
+
+                # Delete inline policies
+                for IP in $(aws iam list-role-policies --role-name "$ROLE_NAME" \
+                          --query 'PolicyNames[]' --output text || true); do
+                  echo "Deleting inline policy $IP from $ROLE_NAME"
+                  aws iam delete-role-policy --role-name "$ROLE_NAME" --policy-name "$IP" || true
+                done
+
+                echo "Deleting role: $ROLE_NAME"
+                aws iam delete-role --role-name "$ROLE_NAME" || true
+              else
+                echo "Role not present: $ROLE_NAME (nothing to delete)"
+              fi
+            fi
+
             TFVARS_FLAG=""
             if [[ -f "${WD}/${ENV}.tfvars" ]]; then
               TFVARS_FLAG="-var-file=${ENV}.tfvars"
