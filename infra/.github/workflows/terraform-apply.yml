@@ -24,7 +24,7 @@ jobs:
   apply:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write   # for AWS OIDC
+      id-token: write  
       contents: read
 
     env:
@@ -34,7 +34,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Pick the AWS role to assume based on env (set these 3 secrets in the repo)
       - name: Select AWS Role for env
         run: |
           case "${{ inputs.env }}" in
