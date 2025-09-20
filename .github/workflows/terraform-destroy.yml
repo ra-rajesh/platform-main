@@ -92,9 +92,11 @@ jobs:
               exit 1
             fi
 
-            # 🧹 CLEANUP: special handling for certain stacks before destroy
+            # ---------------------------
+            # 🧹 PRE-DESTROY CLEANUPS
+            # ---------------------------
 
-            # 1) COMPUTE — delete orphaned instance profile & role to avoid 'EntityAlreadyExists' on future applies
+            # 1) COMPUTE — delete orphaned instance profile/role to avoid 'EntityAlreadyExists' on future applies
             if [[ "$S" == "compute" ]]; then
               echo "=== CLEANUP (compute): IAM instance profile/role (${ENV})"
               PROFILE_NAME="${ENV}-ec2-ssm-instance-profile"
@@ -214,6 +216,37 @@ jobs:
               done <<< "$TG_LIST"
             fi
 
+            # 3) SSM — delete NLB-related params under /idlms/nlb/<env> (defensive if state is missing)
+            if [[ "$S" == "ssm" ]]; then
+              echo "=== CLEANUP (ssm): deleting NLB SSM params for ${ENV}"
+              PREFIX="/idlms/nlb/${ENV}"
+
+              # Paginated fetch & delete
+              NEXT_TOKEN=""
+              while : ; do
+                if [[ -n "$NEXT_TOKEN" && "$NEXT_TOKEN" != "None" ]]; then
+                  RESP="$(aws ssm get-parameters-by-path --path "$PREFIX" --recursive --with-decryption \
+                          --max-items 50 --next-token "$NEXT_TOKEN" --query '{N:Parameters[].Name, T:NextToken}' --output json || true)"
+                else
+                  RESP="$(aws ssm get-parameters-by-path --path "$PREFIX" --recursive --with-decryption \
+                          --max-items 50 --query '{N:Parameters[].Name, T:NextToken}' --output json || true)"
+                fi
+
+                NAMES="$(echo "$RESP" | jq -r '.N[]?')"
+                NEXT_TOKEN="$(echo "$RESP" | jq -r '.T // empty')"
+
+                if [[ -n "$NAMES" ]]; then
+                  # Delete in batches of up to 10
+                  echo "$NAMES" | xargs -r -n 10 aws ssm delete-parameters --names || true
+                fi
+
+                [[ -z "$NEXT_TOKEN" ]] && break
+              done
+            fi
+
+            # ---------------------------
+            # Terraform destroy
+            # ---------------------------
             TFVARS_FLAG=""
             if [[ -f "${WD}/${ENV}.tfvars" ]]; then
               TFVARS_FLAG="-var-file=${ENV}.tfvars"
