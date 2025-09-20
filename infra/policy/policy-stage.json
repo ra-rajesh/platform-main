@@ -14,7 +14,7 @@
                 "ssm:RemoveTagsFromResource",
                 "ssm:ListTagsForResource"
             ],
-            "Resource": "arn:aws:ssm:<AWS_REGION>:<ACCOUNT_ID>:parameter/idlms/*"
+            "Resource": "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/*"
         },
         {
             "Sid": "SsmDescribeParametersAll",
@@ -32,7 +32,7 @@
                 "s3:GetBucketLocation",
                 "s3:ListBucketMultipartUploads"
             ],
-            "Resource": "arn:aws:s3:::stage-btl-idlms-backend-api-tfstate-<ACCOUNT_ID>"
+            "Resource": "arn:aws:s3:::stage-btl-idlms-backend-api-tfstate-881490099206"
         },
         {
             "Sid": "TfStateObjectsRW",
@@ -45,7 +45,7 @@
                 "s3:AbortMultipartUpload",
                 "s3:ListMultipartUploadParts"
             ],
-            "Resource": "arn:aws:s3:::stage-btl-idlms-backend-api-tfstate-<ACCOUNT_ID>/*"
+            "Resource": "arn:aws:s3:::stage-btl-idlms-backend-api-tfstate-881490099206/*"
         },
         {
             "Sid": "TfStateBucketListAlt",
@@ -80,7 +80,7 @@
                 "dynamodb:DeleteItem",
                 "dynamodb:UpdateItem"
             ],
-            "Resource": "arn:aws:dynamodb:<AWS_REGION>:<ACCOUNT_ID>:table/platform-main-terraform-locks"
+            "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/platform-main-terraform-locks"
         },
         {
             "Sid": "TfLocksExtras",
@@ -94,7 +94,7 @@
                 "dynamodb:TagResource",
                 "dynamodb:UntagResource"
             ],
-            "Resource": "arn:aws:dynamodb:<AWS_REGION>:<ACCOUNT_ID>:table/platform-main-terraform-locks"
+            "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/platform-main-terraform-locks"
         },
         {
             "Sid": "TfLocksCreateOnce",
@@ -111,7 +111,7 @@
             "Action": [
                 "dynamodb:DeleteTable"
             ],
-            "Resource": "arn:aws:dynamodb:<AWS_REGION>:<ACCOUNT_ID>:table/platform-main-terraform-locks"
+            "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/platform-main-terraform-locks"
         },
         {
             "Sid": "EcrAuth",
@@ -125,6 +125,13 @@
             "Sid": "EcrRepoOps",
             "Effect": "Allow",
             "Action": [
+                "ecr:DeleteRepository",
+                "ecr:DescribeRepositories",
+                "ecr:GetRepositoryPolicy",
+                "ecr:SetRepositoryPolicy",
+                "ecr:ListTagsForResource",
+                "ecr:TagResource",
+                "ecr:UntagResource",
                 "ecr:BatchCheckLayerAvailability",
                 "ecr:GetDownloadUrlForLayer",
                 "ecr:BatchGetImage",
@@ -132,20 +139,23 @@
                 "ecr:InitiateLayerUpload",
                 "ecr:UploadLayerPart",
                 "ecr:CompleteLayerUpload",
-                "ecr:DescribeRepositories",
                 "ecr:DescribeImages",
-                "ecr:GetRepositoryPolicy",
                 "ecr:ListImages",
-                "ecr:CreateRepository",
-                "ecr:DeleteRepository",
                 "ecr:BatchDeleteImage",
                 "ecr:DeleteRepositoryPolicy"
             ],
             "Resource": [
-                "arn:aws:ecr:<AWS_REGION>:<ACCOUNT_ID>:repository/stage-idlms-api",
-                "arn:aws:ecr:<AWS_REGION>:<ACCOUNT_ID>:repository/stage-idlms-test",
-                "arn:aws:ecr:<AWS_REGION>:<ACCOUNT_ID>:repository/license-api-stage"
+                "arn:aws:ecr:ap-south-1:881490099206:repository/stage-idlms-api",
+                "arn:aws:ecr:ap-south-1:881490099206:repository/stage-idlms-test",
+                "arn:aws:ecr:ap-south-1:881490099206:repository/stage-idlms-reuse",
+                "arn:aws:ecr:ap-south-1:881490099206:repository/license-api-stage"
             ]
+        },
+        {
+            "Sid": "EcrCreateRepository",
+            "Effect": "Allow",
+            "Action": "ecr:CreateRepository",
+            "Resource": "*"
         },
         {
             "Sid": "SsmParams",
@@ -160,10 +170,10 @@
                 "ssm:DeleteParameters"
             ],
             "Resource": [
-                "arn:aws:ssm:<AWS_REGION>:<ACCOUNT_ID>:parameter/idlms/shared/*",
-                "arn:aws:ssm:<AWS_REGION>:<ACCOUNT_ID>:parameter/idlms/license-api/*",
-                "arn:aws:ssm:<AWS_REGION>:<ACCOUNT_ID>:parameter/idlms/reuse/*",
-                "arn:aws:ssm:<AWS_REGION>:<ACCOUNT_ID>:parameter/idlms/test/*"
+                "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/shared/*",
+                "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/license-api/*",
+                "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/reuse/*",
+                "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/test/*"
             ]
         },
         {
@@ -173,7 +183,7 @@
                 "ssm:GetParameter",
                 "ssm:GetParameters"
             ],
-            "Resource": "arn:aws:ssm:<AWS_REGION>::parameter/aws/service/*"
+            "Resource": "arn:aws:ssm:*::parameter/aws/service/*"
         },
         {
             "Sid": "TfStateBucketListArtifact",
@@ -183,7 +193,7 @@
                 "s3:GetBucketLocation",
                 "s3:ListBucketMultipartUploads"
             ],
-            "Resource": "arn:aws:s3:::stage-btl-idlms-backend-api-artifact-<ACCOUNT_ID>"
+            "Resource": "arn:aws:s3:::stage-btl-idlms-backend-api-artifact-881490099206"
         },
         {
             "Sid": "TfStateObjectsRWArtifact",
@@ -196,7 +206,7 @@
                 "s3:AbortMultipartUpload",
                 "s3:ListMultipartUploadParts"
             ],
-            "Resource": "arn:aws:s3:::stage-btl-idlms-backend-api-artifact-<ACCOUNT_ID>/*"
+            "Resource": "arn:aws:s3:::stage-btl-idlms-backend-api-artifact-881490099206/*"
         },
         {
             "Sid": "Ec2Vpc",
