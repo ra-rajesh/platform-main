@@ -1,0 +1,261 @@
+name: Terraform Reset (DANGER)
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: Environment to reset
+        required: true
+        type: choice
+        options: [dev, stage, prod]
+        default: stage
+      confirm:
+        description: Type "NUKE" to confirm you understand this will delete infra, state, and buckets (if chosen)
+        required: true
+        type: string
+      purge_backend:
+        description: ALSO purge & delete the tfstate backend bucket and lock table
+        required: false
+        type: boolean
+        default: false
+      tfstate_bucket:
+        description: Name of the tfstate S3 bucket (e.g. stage-btl-idlms-backend-api-tfstate-881490099206)
+        required: true
+        type: string
+      lock_table:
+        description: Name of the DynamoDB lock table (e.g. platform-main-terraform-locks)
+        required: true
+        type: string
+      artifact_buckets_csv:
+        description: Comma-separated artifact bucket names to fully delete (optional)
+        required: false
+        type: string
+      nuke_ssm_prefixes_csv:
+        description: Comma-separated SSM prefixes to delete (e.g. /idlms/ecr/stage,/idlms/nlb/stage) (optional)
+        required: false
+        type: string
+      lifecycle_days:
+        description: Add/overwrite lifecycle on tfstate bucket to expire objects older than N days (0=skip)
+        required: false
+        type: string
+        default: "0"
+
+concurrency:
+  group: tf-reset-${{ inputs.env }}-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      AWS_REGION: ap-south-1
+      TF_IN_AUTOMATION: "true"
+
+      # Provide all environments' keys; we'll select below
+      AWS_ACCESS_KEY_ID_DEV:       ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
+      AWS_SECRET_ACCESS_KEY_DEV:   ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
+      AWS_ACCESS_KEY_ID_STAGE:     ${{ secrets.AWS_ACCESS_KEY_ID_STAGE }}
+      AWS_SECRET_ACCESS_KEY_STAGE: ${{ secrets.AWS_SECRET_ACCESS_KEY_STAGE }}
+      AWS_ACCESS_KEY_ID_PROD:      ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+      AWS_SECRET_ACCESS_KEY_PROD:  ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Safety check
+        if: ${{ inputs.confirm != 'NUKE' }}
+        run: |
+          echo "::error::Confirmation not provided. Type 'NUKE' in the dispatch form to proceed."
+          exit 1
+
+      - name: Select AWS access keys for env
+        shell: bash
+        run: |
+          case "${{ inputs.env }}" in
+            dev)
+              echo "AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID_DEV }}" >> $GITHUB_ENV
+              echo "AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY_DEV }}" >> $GITHUB_ENV
+              ;;
+            stage)
+              echo "AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID_STAGE }}" >> $GITHUB_ENV
+              echo "AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY_STAGE }}" >> $GITHUB_ENV
+              ;;
+            prod)
+              echo "AWS_ACCESS_KEY_ID=${{ env.AWS_ACCESS_KEY_ID_PROD }}" >> $GITHUB_ENV
+              echo "AWS_SECRET_ACCESS_KEY=${{ env.AWS_SECRET_ACCESS_KEY_PROD }}" >> $GITHUB_ENV
+              ;;
+          esac
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.5
+
+      - name: Destroy stacks (safe order, downstream first)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENV="${{ inputs.env }}"
+          ORDER=( cloudwatch rest-api ssm nlb compute ecr s3 network )
+
+          for S in "${ORDER[@]}"; do
+            WD="infra/environments/${ENV}/stacks/${S}"
+            if [[ ! -d "$WD" ]]; then
+              echo "::notice::Skip $WD (not found)"
+              continue
+            fi
+            if [[ ! -f "${WD}/backend-${ENV}.hcl" ]]; then
+              echo "::error::Missing ${WD}/backend-${ENV}.hcl"
+              exit 1
+            fi
+
+            echo "=== INIT (destroy): $WD"
+            terraform -chdir="$WD" init -input=false -reconfigure -backend-config="backend-${ENV}.hcl"
+
+            TFVARS_FLAG=""
+            if [[ -f "${WD}/${ENV}.tfvars" ]]; then
+              TFVARS_FLAG="-var-file=${ENV}.tfvars"
+            fi
+
+            echo "=== PLAN (destroy): $WD"
+            terraform -chdir="$WD" plan -destroy -input=false $TFVARS_FLAG -var="env_name=${ENV}" -out=tfplan || true
+
+            echo "=== DESTROY: $WD"
+            terraform -chdir="$WD" apply -input=false -auto-approve tfplan || echo "::warning::Destroy failed for $WD, continuing (we will hard-clean)."
+          done
+
+      - name: Parse backend config & purge remote state objects
+        shell: bash
+        run: |
+          set -euo pipefail
+          ENV="${{ inputs.env }}"
+          TFSTATE_BUCKET="${{ inputs.tfstate_bucket }}"
+
+          purge_key() {
+            local BUCKET="$1" KEY="$2"
+            if [[ -z "$KEY" ]]; then return; fi
+            echo "Purging versions for s3://$BUCKET/$KEY"
+            # delete object versions + delete markers in batches (handles versioned buckets)
+            aws s3api list-object-versions --bucket "$BUCKET" --prefix "$KEY" --output json \
+              | jq -r '.Versions[]?, .DeleteMarkers[]? | [.Key, .VersionId] | @tsv' \
+              | while IFS=$'\t' read -r K VID; do
+                  aws s3api delete-object --bucket "$BUCKET" --key "$K" --version-id "$VID" || true
+                done
+            # defensive delete in case bucket not versioned
+            aws s3 rm "s3://$BUCKET/$KEY" || true
+          }
+
+          # loop stacks and read bucket/key from backend-<env>.hcl
+          find "infra/environments/${ENV}/stacks" -maxdepth 2 -name "backend-${ENV}.hcl" | while read -r BCFG; do
+            BKT="$(grep -E '^\s*bucket\s*=' "$BCFG" | sed -E 's/.*=\s*"([^"]+)".*/\1/')"
+            KEY="$(grep -E '^\s*key\s*='    "$BCFG" | sed -E 's/.*=\s*"([^"]+)".*/\1/')"
+            if [[ "$BKT" != "$TFSTATE_BUCKET" ]]; then
+              echo "::notice::Skipping backend purge for $(dirname "$BCFG") because bucket ($BKT) != provided ($TFSTATE_BUCKET)"
+              continue
+            fi
+            purge_key "$BKT" "$KEY"
+          done
+
+      - name: Nuke SSM parameter paths (optional)
+        if: ${{ inputs.nuke_ssm_prefixes_csv != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=',' read -ra PFX <<< "${{ inputs.nuke_ssm_prefixes_csv }}"
+          for PREFIX in "${PFX[@]}"; do
+            PREFIX="$(echo "$PREFIX" | xargs)"
+            [[ -z "$PREFIX" ]] && continue
+            echo "Deleting SSM params under: $PREFIX"
+            NEXT=""
+            while : ; do
+              if [[ -n "$NEXT" ]]; then
+                RESP="$(aws ssm get-parameters-by-path --path "$PREFIX" --recursive --with-decryption --max-items 50 --next-token "$NEXT")"
+              else
+                RESP="$(aws ssm get-parameters-by-path --path "$PREFIX" --recursive --with-decryption --max-items 50)"
+              fi
+              echo "$RESP" | jq -r '.Parameters[].Name' | xargs -r -n10 aws ssm delete-parameters --names || true
+              NEXT="$(echo "$RESP" | jq -r '.NextToken // empty')"
+              [[ -z "$NEXT" ]] && break
+            done
+          done
+
+      - name: Delete artifact buckets (optional)
+        if: ${{ inputs.artifact_buckets_csv != '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=',' read -ra B <<< "${{ inputs.artifact_buckets_csv }}"
+          for BUCKET in "${B[@]}"; do
+            BUCKET="$(echo "$BUCKET" | xargs)"
+            [[ -z "$BUCKET" ]] && continue
+            echo "Emptying & deleting artifact bucket: $BUCKET"
+            # delete versions + markers if versioned
+            aws s3api list-object-versions --bucket "$BUCKET" --output json \
+              | jq -r '.Versions[]?, .DeleteMarkers[]? | [.Key, .VersionId] | @tsv' \
+              | while IFS=$'\t' read -r K VID; do
+                  aws s3api delete-object --bucket "$BUCKET" --key "$K" --version-id "$VID" || true
+                done
+            # delete any remaining non-versioned objects
+            aws s3 rm "s3://$BUCKET" --recursive || true
+            # delete bucket
+            aws s3api delete-bucket --bucket "$BUCKET" || true
+          done
+
+      - name: Add lifecycle to backend bucket (optional)
+        if: ${{ inputs.lifecycle_days != '0' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DAYS="${{ inputs.lifecycle_days }}"
+          BUCKET="${{ inputs.tfstate_bucket }}"
+          echo "Setting lifecycle to expire objects older than ${DAYS} days on ${BUCKET}"
+          aws s3api put-bucket-lifecycle-configuration \
+            --bucket "$BUCKET" \
+            --lifecycle-configuration "{
+              \"Rules\": [{
+                \"ID\": \"expire-old-objects\",
+                \"Status\": \"Enabled\",
+                \"Filter\": {\"Prefix\": \"\"},
+                \"Expiration\": {\"Days\": ${DAYS}}
+              }]
+            }" || true
+
+      - name: Purge & delete backend bucket + lock table (DANGER)
+        if: ${{ inputs.purge_backend }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          BUCKET="${{ inputs.tfstate_bucket }}"
+          TABLE="${{ inputs.lock_table }}"
+
+          echo "Emptying tfstate bucket: $BUCKET"
+          aws s3api list-object-versions --bucket "$BUCKET" --output json \
+            | jq -r '.Versions[]?, .DeleteMarkers[]? | [.Key, .VersionId] | @tsv' \
+            | while IFS=$'\t' read -r K VID; do
+                aws s3api delete-object --bucket "$BUCKET" --key "$K" --version-id "$VID" || true
+              done
+          aws s3 rm "s3://$BUCKET" --recursive || true
+          echo "Deleting bucket: $BUCKET"
+          aws s3api delete-bucket --bucket "$BUCKET" || true
+
+          echo "Deleting DynamoDB lock table: $TABLE"
+          aws dynamodb delete-table --table-name "$TABLE" || true
+          aws dynamodb wait table-not-exists --table-name "$TABLE" || true
+
+      - name: Clean local TF folders
+        shell: bash
+        run: |
+          set -euo pipefail
+          find infra/environments -type d -name ".terraform" -exec rm -rf {} + || true
+          find infra/environments -type f -name "tfplan" -delete || true
+          find infra/environments -type f -name ".terraform.lock.hcl" -delete || true
