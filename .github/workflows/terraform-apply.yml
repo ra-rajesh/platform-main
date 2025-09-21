@@ -29,6 +29,7 @@ jobs:
     env:
       AWS_REGION: ap-south-1
       TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"                            # ✅ never prompt in CI
       AWS_ACCESS_KEY_ID_DEV:       ${{ secrets.AWS_ACCESS_KEY_ID_DEV }}
       AWS_SECRET_ACCESS_KEY_DEV:   ${{ secrets.AWS_SECRET_ACCESS_KEY_DEV }}
       AWS_ACCESS_KEY_ID_STAGE:     ${{ secrets.AWS_ACCESS_KEY_ID_STAGE }}
@@ -68,12 +69,12 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.9.5
+          terraform_wrapper: false                 # ✅ avoid Node wrapper EPIPE
 
       - name: Apply stacks in order
         shell: bash
         run: |
           set -euo pipefail
-
           ENV="${{ inputs.env }}"
           SEL="${{ inputs.stack }}"
           ORDER=( network compute ecr s3 nlb ssm rest-api cloudwatch )
@@ -139,7 +140,6 @@ jobs:
                 done
                 ;;
               rest-api|ssm|cloudwatch|ecr|s3)
-                # Most of these do not need remote-state keys, leave as-is.
                 :
                 ;;
               network)
@@ -157,7 +157,6 @@ jobs:
             if [[ "$S" == "compute" ]]; then
               PROFILE_NAME="${ENV}-ec2-ssm-instance-profile"
               ROLE_NAME="${ENV}-ec2-ssm-role"
-
               if aws iam get-instance-profile --instance-profile-name "$PROFILE_NAME" >/dev/null 2>&1; then
                 if ! terraform -chdir="$WD" state list | grep -q 'module.compute.module.iam_ssm.aws_iam_instance_profile.this\[0\]'; then
                   terraform -chdir="$WD" import 'module.compute.module.iam_ssm.aws_iam_instance_profile.this[0]' "$PROFILE_NAME" || true
@@ -205,10 +204,10 @@ jobs:
             fi
 
             echo "=== PLAN: $WD"
-            terraform -chdir="$WD" plan -input=false $TFVARS_FLAG "${EXTRA_VARS[@]}" -out=tfplan
+            terraform -chdir="$WD" plan -input=false -lock-timeout=5m $TFVARS_FLAG "${EXTRA_VARS[@]}" -out=tfplan
 
             echo "=== APPLY: $WD"
-            terraform -chdir="$WD" apply -input=false -auto-approve tfplan
+            terraform -chdir="$WD" apply -input=false -auto-approve -lock-timeout=5m tfplan
 
             echo "=== OUTPUTS: $WD"
             terraform -chdir="$WD" output || true
