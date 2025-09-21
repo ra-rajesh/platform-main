@@ -173,6 +173,7 @@
                 "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/shared/*",
                 "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/license-api/*",
                 "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/reuse/*",
+                "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/*",
                 "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/test/*"
             ]
         },
