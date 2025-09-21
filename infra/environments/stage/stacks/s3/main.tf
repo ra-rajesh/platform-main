@@ -63,7 +63,6 @@ data "aws_s3_bucket" "artifact_existing" {
 locals {
   bucket_id   = local.create_bucket ? aws_s3_bucket.artifact[0].id   : data.aws_s3_bucket.artifact_existing[0].id
   bucket_arn  = local.create_bucket ? aws_s3_bucket.artifact[0].arn  : data.aws_s3_bucket.artifact_existing[0].arn
-  bucket_name = local.bucket_name
 }
 
 # SSM params (always write)
