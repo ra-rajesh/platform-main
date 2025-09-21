@@ -20,8 +20,9 @@ locals {
 }
 
 resource "aws_s3_bucket" "artifact" {
-  bucket = local.bucket_name
-  tags   = local.tags
+  bucket        = local.bucket_name
+  force_destroy = true
+  tags          = local.tags
 }
 
 resource "aws_s3_bucket_versioning" "v" {
