@@ -8,8 +8,9 @@ provider "aws" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  # Single-line ternary to avoid parser issues
-  bucket_name = var.artifact_bucket_name_override != "" ? var.artifact_bucket_name_override : "${var.env_name}-idlms-artifacts-${data.aws_caller_identity.current.account_id}"
+  # Use override if provided; else build a default name
+  bucket_name   = var.artifact_bucket_name_override != "" ? var.artifact_bucket_name_override : "${var.env_name}-idlms-artifacts-${data.aws_caller_identity.current.account_id}"
+  create_bucket = var.artifact_bucket_name_override == ""  # create only when no override
 
   tags = merge({
     "user:Project" = "IDLMS"
@@ -19,21 +20,23 @@ locals {
   }, var.common_tags)
 }
 
+# Create path
 resource "aws_s3_bucket" "artifact" {
+  count         = local.create_bucket ? 1 : 0
   bucket        = local.bucket_name
   force_destroy = true
   tags          = local.tags
 }
 
 resource "aws_s3_bucket_versioning" "v" {
-  bucket = aws_s3_bucket.artifact.id
-  versioning_configuration {
-    status = "Enabled"
-  }
+  count  = local.create_bucket ? 1 : 0
+  bucket = aws_s3_bucket.artifact[0].id
+  versioning_configuration { status = "Enabled" }
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "sse" {
-  bucket = aws_s3_bucket.artifact.id
+  count  = local.create_bucket ? 1 : 0
+  bucket = aws_s3_bucket.artifact[0].id
   rule {
     apply_server_side_encryption_by_default {
       sse_algorithm = "AES256"
@@ -42,17 +45,32 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "sse" {
 }
 
 resource "aws_s3_bucket_public_access_block" "pab" {
-  bucket                  = aws_s3_bucket.artifact.id
+  count                   = local.create_bucket ? 1 : 0
+  bucket                  = aws_s3_bucket.artifact[0].id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
+# Reuse path
+data "aws_s3_bucket" "artifact_existing" {
+  count  = local.create_bucket ? 0 : 1
+  bucket = local.bucket_name
+}
+
+# Unified handles for bucket id/arn/name (works in both paths)
+locals {
+  bucket_id   = local.create_bucket ? aws_s3_bucket.artifact[0].id   : data.aws_s3_bucket.artifact_existing[0].id
+  bucket_arn  = local.create_bucket ? aws_s3_bucket.artifact[0].arn  : data.aws_s3_bucket.artifact_existing[0].arn
+  bucket_name = local.bucket_name
+}
+
+# SSM params (always write)
 resource "aws_ssm_parameter" "bucket_name" {
   name      = "${var.ssm_prefix}/${var.env_name}/bucket_name"
   type      = "String"
-  value     = aws_s3_bucket.artifact.bucket
+  value     = local.bucket_name
   overwrite = true
 }
 
@@ -62,19 +80,18 @@ resource "aws_ssm_parameter" "default_key" {
   value     = "releases/"
   overwrite = true
 }
-data "aws_iam_policy_document" "artifact_bucket_extra" { #=> Remove this later i add for idlms-testyes
+
+# Bucket policy for GitHub OIDC role (kept, but made env-aware)
+data "aws_iam_policy_document" "artifact_bucket_extra" {
   statement {
-    sid    = "AllowGitHubOIDCToPutObjects"
-    effect = "Allow"
-    actions = [
-      "s3:PutObject",
-      "s3:GetObject"
-    ]
-    resources = [
-      "${aws_s3_bucket.artifact.arn}/deploy/stage/*"
-    ]
+    sid     = "AllowGitHubOIDCToPutObjects"
+    effect  = "Allow"
+    actions = ["s3:PutObject", "s3:GetObject"]
+
+    resources = ["${local.bucket_arn}/deploy/${var.env_name}/*"]
+
     principals {
-      type = "AWS"
+      type        = "AWS"
       identifiers = [
         "arn:aws:iam::592776312448:role/github-oidc-idlms-test"
       ]
@@ -83,6 +100,6 @@ data "aws_iam_policy_document" "artifact_bucket_extra" { #=> Remove this later i
 }
 
 resource "aws_s3_bucket_policy" "artifact_policy" {
-  bucket = aws_s3_bucket.artifact.id
+  bucket = local.bucket_id
   policy = data.aws_iam_policy_document.artifact_bucket_extra.json
 }
