@@ -73,13 +73,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           ENV="${{ inputs.env }}"
           SEL="${{ inputs.stack }}"
-
           # Safe destroy order (downstream first)
           ORDER=( cloudwatch rest-api ssm nlb compute ecr s3 network )
           if [[ "$SEL" != "all" ]]; then ORDER=("$SEL"); fi
+
+          # Ensure jq exists for SSM cleanup step
+          command -v jq >/dev/null 2>&1 || { sudo apt-get update -y && sudo apt-get install -y jq; }
 
           for S in "${ORDER[@]}"; do
             WD="infra/environments/${ENV}/stacks/${S}"
@@ -95,20 +96,14 @@ jobs:
             # ---------------------------
             # 🧹 PRE-DESTROY CLEANUPS
             # ---------------------------
-
-            # 1) COMPUTE — delete orphaned instance profile/role to avoid 'EntityAlreadyExists' on future applies
             if [[ "$S" == "compute" ]]; then
               echo "=== CLEANUP (compute): IAM instance profile/role (${ENV})"
               PROFILE_NAME="${ENV}-ec2-ssm-instance-profile"
               ROLE_NAME="${ENV}-ec2-ssm-role"
-
               if aws iam get-instance-profile --instance-profile-name "$PROFILE_NAME" >/dev/null 2>&1; then
                 echo "Found instance profile: $PROFILE_NAME"
-
                 ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
                 PROFILE_ARN="arn:aws:iam::${ACCOUNT_ID}:instance-profile/${PROFILE_NAME}"
-
-                # Disassociate from any instances (region-specific)
                 ASSOC_IDS="$(aws ec2 describe-iam-instance-profile-associations \
                   --region "${AWS_REGION}" \
                   --filters Name=iam-instance-profile.arn,Values="${PROFILE_ARN}" \
@@ -118,8 +113,6 @@ jobs:
                   echo "Disassociating instance profile: $AID"
                   aws ec2 disassociate-iam-instance-profile --region "${AWS_REGION}" --association-id "$AID" || true
                 done
-
-                # Remove any attached roles from the profile
                 ROLE_NAMES="$(aws iam get-instance-profile \
                   --instance-profile-name "$PROFILE_NAME" \
                   --query 'InstanceProfile.Roles[].RoleName' \
@@ -130,31 +123,23 @@ jobs:
                     --instance-profile-name "$PROFILE_NAME" \
                     --role-name "$RN" || true
                 done
-
                 echo "Deleting instance profile: $PROFILE_NAME"
                 aws iam delete-instance-profile --instance-profile-name "$PROFILE_NAME" || true
               else
                 echo "Instance profile not present: $PROFILE_NAME (nothing to delete)"
               fi
-
-              # Optionally delete the role too (safe if it exists)
               if aws iam get-role --role-name "$ROLE_NAME" >/dev/null 2>&1; then
                 echo "Cleaning up role: $ROLE_NAME"
-
-                # Detach managed policies
                 for P in $(aws iam list-attached-role-policies --role-name "$ROLE_NAME" \
                           --query 'AttachedPolicies[].PolicyArn' --output text || true); do
                   echo "Detaching $P from $ROLE_NAME"
                   aws iam detach-role-policy --role-name "$ROLE_NAME" --policy-arn "$P" || true
                 done
-
-                # Delete inline policies
                 for IP in $(aws iam list-role-policies --role-name "$ROLE_NAME" \
                           --query 'PolicyNames[]' --output text || true); do
                   echo "Deleting inline policy $IP from $ROLE_NAME"
                   aws iam delete-role-policy --role-name "$ROLE_NAME" --policy-name "$IP" || true
                 done
-
                 echo "Deleting role: $ROLE_NAME"
                 aws iam delete-role --role-name "$ROLE_NAME" || true
               else
@@ -162,22 +147,16 @@ jobs:
               fi
             fi
 
-            # 2) NLB — delete existing LB & any TGs (defensive cleanup if state is missing)
             if [[ "$S" == "nlb" ]]; then
               echo "=== CLEANUP (nlb): deleting existing NLB & TGs for ${ENV}"
               NLB_NAME="${ENV}-idlms-nlb"
-
-              # Look up LB ARN by name
               LB_ARN="$(aws elbv2 describe-load-balancers \
                 --region "${AWS_REGION}" \
                 --names "${NLB_NAME}" \
                 --query 'LoadBalancers[0].LoadBalancerArn' \
                 --output text 2>/dev/null || true)"
-
               if [[ -n "$LB_ARN" && "$LB_ARN" != "None" ]]; then
                 echo "Found NLB: $NLB_NAME ($LB_ARN)"
-
-                # Delete listeners first
                 LISTENERS="$(aws elbv2 describe-listeners \
                   --region "${AWS_REGION}" \
                   --load-balancer-arn "${LB_ARN}" \
@@ -187,26 +166,18 @@ jobs:
                   echo "Deleting listener: $L"
                   aws elbv2 delete-listener --region "${AWS_REGION}" --listener-arn "$L" || true
                 done
-
-                # Delete the NLB
                 echo "Deleting load balancer: $LB_ARN"
                 aws elbv2 delete-load-balancer --region "${AWS_REGION}" --load-balancer-arn "${LB_ARN}" || true
-
-                # Wait till deleted (best-effort)
                 aws elbv2 wait load-balancers-deleted --region "${AWS_REGION}" --load-balancer-arns "${LB_ARN}" || true
               else
                 echo "No NLB found named ${NLB_NAME} (skip LB delete)"
               fi
-
-              # Delete TGs that start with "<env>-idlms-nlb-"
               TG_PREFIX="${NLB_NAME}-"
               echo "Scanning for TGs with prefix: ${TG_PREFIX}"
               TG_LIST="$(aws elbv2 describe-target-groups \
                 --region "${AWS_REGION}" \
                 --query 'TargetGroups[].{n:TargetGroupName,a:TargetGroupArn}' \
                 --output text || true)"
-
-              # TG_LIST lines are "name arn"
               while read -r TG_NAME TG_ARN; do
                 [[ -z "${TG_NAME:-}" || -z "${TG_ARN:-}" ]] && continue
                 if [[ "$TG_NAME" == ${TG_PREFIX}* ]]; then
@@ -216,12 +187,9 @@ jobs:
               done <<< "$TG_LIST"
             fi
 
-            # 3) SSM — delete NLB-related params under /idlms/nlb/<env> (defensive if state is missing)
             if [[ "$S" == "ssm" ]]; then
               echo "=== CLEANUP (ssm): deleting NLB SSM params for ${ENV}"
               PREFIX="/idlms/nlb/${ENV}"
-
-              # Paginated fetch & delete
               NEXT_TOKEN=""
               while : ; do
                 if [[ -n "$NEXT_TOKEN" && "$NEXT_TOKEN" != "None" ]]; then
@@ -231,18 +199,21 @@ jobs:
                   RESP="$(aws ssm get-parameters-by-path --path "$PREFIX" --recursive --with-decryption \
                           --max-items 50 --query '{N:Parameters[].Name, T:NextToken}' --output json || true)"
                 fi
-
                 NAMES="$(echo "$RESP" | jq -r '.N[]?')"
                 NEXT_TOKEN="$(echo "$RESP" | jq -r '.T // empty')"
-
                 if [[ -n "$NAMES" ]]; then
-                  # Delete in batches of up to 10
                   echo "$NAMES" | xargs -r -n 10 aws ssm delete-parameters --names || true
                 fi
-
                 [[ -z "$NEXT_TOKEN" ]] && break
               done
             fi
+
+            # ---------------------------
+            # 🔎 PRECHECK: validate config without backend
+            # ---------------------------
+            echo "=== PRECHECK: $WD (validate without backend)"
+            terraform -chdir="$WD" init -input=false -backend=false
+            terraform -chdir="$WD" validate -no-color
 
             # ---------------------------
             # Terraform destroy
@@ -258,10 +229,10 @@ jobs:
             terraform -chdir="$WD" init -input=false -reconfigure -backend-config="backend-${ENV}.hcl"
 
             echo "=== PLAN (destroy): $WD"
-            terraform -chdir="$WD" plan -destroy -input=false $TFVARS_FLAG -var="env_name=${ENV}" -out=tfplan
+            terraform -chdir="$WD" plan -destroy -input=false $TFVARS_FLAG -var="env_name=${ENV}" -lock-timeout=10m -out=tfplan
 
             echo "=== DESTROY: $WD"
-            terraform -chdir="$WD" apply -input=false -auto-approve tfplan || {
+            terraform -chdir="$WD" apply -input=false -auto-approve -lock-timeout=10m tfplan || {
               echo "::error::Destroy failed for $WD"
               exit 1
             }
