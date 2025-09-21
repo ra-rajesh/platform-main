@@ -1,7 +1,7 @@
 env_name = "stage"
 region   = "ap-south-1"
 
-tf_state_bucket = "stage-btl-idlms-backend-api-artifact-881490099206"
+tf_state_bucket = "stage-btl-idlms-backend-api-tfstate-881490099206"
 tf_state_region = "ap-south-1"
 
 network_state_key = "stage/network/terraform.tfstate"

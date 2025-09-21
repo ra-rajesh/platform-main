@@ -9,6 +9,20 @@ aws sts get-caller-identity --profile platform-main-stage --region ap-south-1
 export AWS_PROFILE=platform-main-stage
 export AWS_REGION=ap-south-1
 
+aws dynamodb create-table \
+  --table-name platform-main-terraform-locks \
+  --attribute-definitions AttributeName=LockID,AttributeType=S \
+  --key-schema AttributeName=LockID,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST \
+  --sse-specification Enabled=true,SSEType=KMS \
+  --region ap-south-1
+
+aws dynamodb wait table-exists \
+  --table-name platform-main-terraform-locks \
+  --region ap-south-1
+
+
+
 # 4) Re-run init
 terraform init -upgrade -reconfigure
 

@@ -3,7 +3,7 @@ env_name = "stage"
 region   = "ap-south-1"
 
 # Remote state (S3) location that holds *all* stack states
-tf_state_bucket = "stage-btl-idlms-backend-api-artifact-881490099206"
+tf_state_bucket = "stage-btl-idlms-backend-api-tfstate-881490099206"
 
 # Compute needs to read the NETWORK state for VPC/subnets
 network_state_key = "stage/network/terraform.tfstate"
