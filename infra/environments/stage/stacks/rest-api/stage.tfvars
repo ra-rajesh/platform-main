@@ -6,7 +6,7 @@ stage_name  = "stage"
 description = "IDLMS REST API for stage"
 
 # must match your NLB SSM path from the NLB stack
-nlb_ssm_prefix = "/idlms/nlb/stage"
+# nlb_ssm_prefix = "/idlms/nlb/stage"
 
 routes = {
   "idlms-app"    = { port = 4000, health_path = "/health" }
