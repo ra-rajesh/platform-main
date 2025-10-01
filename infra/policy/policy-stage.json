@@ -2,33 +2,28 @@
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "SsmParamsNlb",
+            "Sid": "SsmAllowDotEnvOnly",
             "Effect": "Allow",
             "Action": [
+                "ssm:PutParameter",
                 "ssm:GetParameter",
                 "ssm:GetParameters",
                 "ssm:GetParametersByPath",
-                "ssm:PutParameter",
                 "ssm:DeleteParameter",
                 "ssm:AddTagsToResource",
                 "ssm:RemoveTagsFromResource",
                 "ssm:ListTagsForResource"
             ],
-            "Resource": "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/*/*/.env"
+            "Resource": "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms*/.env"
         },
         {
-            "Sid": "TfLocksScan",
-            "Effect": "Allow",
-            "Action": "dynamodb:Scan",
-            "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/resources-terraform-locks"
-        },
-        {
-            "Sid": "SsmDescribeParametersAll",
+            "Sid": "SsmPublicAmiParams",
             "Effect": "Allow",
             "Action": [
-                "ssm:DescribeParameters"
+                "ssm:GetParameter",
+                "ssm:GetParameters"
             ],
-            "Resource": "*"
+            "Resource": "arn:aws:ssm:*::parameter/aws/service/*"
         },
         {
             "Sid": "TfStateBucketList",
@@ -77,7 +72,13 @@
             "Resource": "arn:aws:s3:::stage-idlms-artifacts-881490099206/*"
         },
         {
-            "Sid": "TfLocks",
+            "Sid": "TfLocksScan",
+            "Effect": "Allow",
+            "Action": "dynamodb:Scan",
+            "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/resources-terraform-locks"
+        },
+        {
+            "Sid": "TfLocksCRUD",
             "Effect": "Allow",
             "Action": [
                 "dynamodb:DescribeTable",
@@ -89,9 +90,12 @@
             "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/*"
         },
         {
-            "Sid": "TfLocksExtras",
+            "Sid": "TfLocksAdminOnce",
             "Effect": "Allow",
             "Action": [
+                "dynamodb:CreateTable",
+                "dynamodb:ListTables",
+                "dynamodb:DeleteTable",
                 "dynamodb:DescribeContinuousBackups",
                 "dynamodb:DescribeTimeToLive",
                 "dynamodb:ListTagsOfResource",
@@ -103,28 +107,9 @@
             "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/*"
         },
         {
-            "Sid": "TfLocksCreateOnce",
-            "Effect": "Allow",
-            "Action": [
-                "dynamodb:CreateTable",
-                "dynamodb:ListTables"
-            ],
-            "Resource": "*"
-        },
-        {
-            "Sid": "TfLocksDelete",
-            "Effect": "Allow",
-            "Action": [
-                "dynamodb:DeleteTable"
-            ],
-            "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/*"
-        },
-        {
             "Sid": "EcrAuth",
             "Effect": "Allow",
-            "Action": [
-                "ecr:GetAuthorizationToken"
-            ],
+            "Action": "ecr:GetAuthorizationToken",
             "Resource": "*"
         },
         {
@@ -157,32 +142,6 @@
             "Effect": "Allow",
             "Action": "ecr:CreateRepository",
             "Resource": "*"
-        },
-        {
-            "Sid": "SsmParams",
-            "Effect": "Allow",
-            "Action": [
-                "ssm:GetParameter",
-                "ssm:GetParameters",
-                "ssm:GetParametersByPath",
-                "ssm:DescribeParameters",
-                "ssm:PutParameter",
-                "ssm:DeleteParameter",
-                "ssm:DeleteParameters",
-                "ssm:AddTagsToResource",
-                "ssm:RemoveTagsFromResource",
-                "ssm:ListTagsForResource"
-            ],
-            "Resource": "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/*/*/.env"
-        },
-        {
-            "Sid": "SsmPublicAmiParams",
-            "Effect": "Allow",
-            "Action": [
-                "ssm:GetParameter",
-                "ssm:GetParameters"
-            ],
-            "Resource": "arn:aws:ssm:*::parameter/aws/service/*"
         },
         {
             "Sid": "Ec2Vpc",
@@ -227,7 +186,6 @@
                 "iam:CreateRole",
                 "iam:DeleteRole",
                 "iam:GetRole",
-                "iam:PassRole",
                 "iam:AttachRolePolicy",
                 "iam:DetachRolePolicy",
                 "iam:PutRolePolicy",
@@ -240,6 +198,17 @@
                 "iam:ListInstanceProfiles"
             ],
             "Resource": "*"
+        },
+        {
+            "Sid": "IamPassRoleEc2Only",
+            "Effect": "Allow",
+            "Action": "iam:PassRole",
+            "Resource": "arn:aws:iam::881490099206:role/idlms-ec2-*",
+            "Condition": {
+                "StringEquals": {
+                    "iam:PassedToService": "ec2.amazonaws.com"
+                }
+            }
         },
         {
             "Sid": "IamRoleReadLists",
@@ -256,22 +225,9 @@
             "Resource": "*"
         },
         {
-            "Sid": "IamCreateSlrElb",
-            "Effect": "Allow",
-            "Action": "iam:CreateServiceLinkedRole",
-            "Resource": "*",
-            "Condition": {
-                "StringEquals": {
-                    "iam:AWSServiceName": "elasticloadbalancing.amazonaws.com"
-                }
-            }
-        },
-        {
             "Sid": "DescribeInstances",
             "Effect": "Allow",
-            "Action": [
-                "ec2:DescribeInstances"
-            ],
+            "Action": "ec2:DescribeInstances",
             "Resource": "*"
         },
         {
