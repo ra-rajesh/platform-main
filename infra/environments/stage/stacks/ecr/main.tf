@@ -8,33 +8,11 @@ module "ecr" {
   scan_on_push         = var.scan_on_push
   force_delete         = var.force_delete
   tags                 = var.tags
+
+  # Be explicit: never publish to SSM
+  ssm_prefix = ""
 }
 
-# Publish repo details to SSM so IDLMS CI can discover by logical name.
-locals {
-  _repo_indexes = { for idx, name in var.repositories : name => idx }
-}
-
-resource "aws_ssm_parameter" "repo_url" {
-  for_each  = local._repo_indexes
-  name      = "/idlms/ecr/${var.env_name}/${each.key}/repository_url"
-  type      = "String"
-  value     = module.ecr.repository_urls[each.value]
-  overwrite = true
-}
-
-resource "aws_ssm_parameter" "repo_arn" {
-  for_each  = local._repo_indexes
-  name      = "/idlms/ecr/${var.env_name}/${each.key}/repository_arn"
-  type      = "String"
-  value     = module.ecr.repository_arns[each.value]
-  overwrite = true
-}
-
-resource "aws_ssm_parameter" "repo_name" {
-  for_each  = local._repo_indexes
-  name      = "/idlms/ecr/${var.env_name}/${each.key}/repository_name"
-  type      = "String"
-  value     = module.ecr.repository_names[each.value]
-  overwrite = true
-}
+output "repository_names" { value = module.ecr.repository_names }
+output "repository_arns" { value = module.ecr.repository_arns }
+output "repository_urls" { value = module.ecr.repository_urls }

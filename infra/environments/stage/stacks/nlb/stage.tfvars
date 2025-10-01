@@ -12,8 +12,8 @@ ports = [4000, 4010]
 
 internal = true
 
-ssm_prefix = "/idlms/nlb/stage"
-
+# ssm_prefix = "/idlms/nlb/stage"
+ssm_prefix = ""
 common_tags = {
   Environment = "stage"
   Project     = "IDLMS"

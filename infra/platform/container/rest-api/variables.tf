@@ -21,11 +21,6 @@ variable "description" {
   default = "IDLMS shared REST API (Option B: path -> backend route)"
 }
 
-# Read NLB values from SSM (e.g., "/idlms/stage/nlb")
-variable "nlb_ssm_prefix" {
-  type = string
-}
-
 # Path -> { port, optional health_path }
 variable "routes" {
   type = map(object({
@@ -66,4 +61,12 @@ variable "execution_data_trace" {
 variable "tags" {
   type    = map(string)
   default = {}
+}
+
+variable "nlb_arn" {
+  type = string
+}
+
+variable "nlb_dns_name" {
+  type = string
 }

@@ -1,28 +1,15 @@
-# --- Read NLB details from SSM ---
-data "aws_ssm_parameter" "lb_arn" {
-  name = "${var.nlb_ssm_prefix}/lb_arn"
-}
-
-data "aws_ssm_parameter" "lb_dns_name" {
-  name = "${var.nlb_ssm_prefix}/lb_dns_name"
-}
-
 locals {
-  nlb_arn      = data.aws_ssm_parameter.lb_arn.value
-  nlb_dns_name = data.aws_ssm_parameter.lb_dns_name.value
+  nlb_arn      = var.nlb_arn
+  nlb_dns_name = var.nlb_dns_name
 
-  # Normalize health_path default
   routes = {
     for k, v in var.routes :
-    k => {
-      port        = v.port
-      health_path = coalesce(try(v.health_path, null), "/health")
-    }
+    k => merge(v, { health_path = try(v.health_path, "/health") })
   }
 
-  first_route_key = try(keys(local.routes)[0], null)
-  first_route     = try(local.routes[local.first_route_key], null)
-  first_route_url = local.first_route_key == null ? null : "http://${local.nlb_dns_name}:${local.first_route.port}"
+  first_route_key = length(keys(local.routes)) > 0 ? sort(keys(local.routes))[0] : null
+  first_route     = local.first_route_key == null ? null : local.routes[local.first_route_key]
+  first_route_url = local.first_route == null ? null : "http://${local.nlb_dns_name}:${local.first_route.port}"
 }
 
 # --- IAM role for API Gateway execution logs ---
@@ -88,7 +75,7 @@ resource "aws_api_gateway_integration" "root_get" {
   uri                     = "${local.first_route_url}${local.first_route.health_path}"
 }
 
-# --- For each route: resources ---
+# --- For each route: resources (/app & /app/{proxy+}) ---
 resource "aws_api_gateway_resource" "route_base" {
   for_each    = local.routes
   rest_api_id = aws_api_gateway_rest_api.this.id
@@ -103,7 +90,7 @@ resource "aws_api_gateway_resource" "route_proxy" {
   path_part   = "{proxy+}"
 }
 
-# --- NEW: Base path ANY on /{app} -> http://NLB:<port>/ ---
+# --- Base path ANY on /{app} -> http://NLB:<port>/ ---
 resource "aws_api_gateway_method" "route_base_any" {
   for_each      = local.routes
   rest_api_id   = aws_api_gateway_rest_api.this.id
@@ -177,12 +164,6 @@ resource "aws_cloudwatch_log_group" "access_logs" {
   tags              = var.tags
 }
 
-# resource "aws_cloudwatch_log_group" "execution_logs" {
-#   name              = "/aws/api-gateway/${var.stage_name}/${var.api_name}/execution"
-#   retention_in_days = var.access_log_retention_days
-#   tags              = var.tags
-# }
-
 resource "aws_api_gateway_stage" "this" {
   rest_api_id   = aws_api_gateway_rest_api.this.id
   stage_name    = var.stage_name
@@ -212,7 +193,7 @@ resource "aws_api_gateway_method_settings" "all" {
 
   settings {
     metrics_enabled    = var.execution_metrics_enabled
-    logging_level      = "INFO" # or "ERROR"
+    logging_level      = "INFO"
     data_trace_enabled = var.execution_data_trace
   }
 

@@ -63,3 +63,6 @@ variable "tags" {
   type    = map(string)
   default = {}
 }
+variable "tf_state_bucket" { type = string }
+variable "tf_state_region" { type = string }
+variable "nlb_state_key" { type = string } # e.g., "stage/nlb/terraform.tfstate"
