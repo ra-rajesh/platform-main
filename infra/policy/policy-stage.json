@@ -14,13 +14,13 @@
                 "ssm:RemoveTagsFromResource",
                 "ssm:ListTagsForResource"
             ],
-            "Resource": "arn:aws:ssm:ap-south-1:592776312448:parameter/idlms/*"
+            "Resource": "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/*/*/.env"
         },
         {
             "Sid": "TfLocksScan",
             "Effect": "Allow",
             "Action": "dynamodb:Scan",
-            "Resource": "arn:aws:dynamodb:ap-south-1:592776312448:table/resources-terraform-locks"
+            "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/resources-terraform-locks"
         },
         {
             "Sid": "SsmDescribeParametersAll",
@@ -38,7 +38,7 @@
                 "s3:GetBucketLocation",
                 "s3:ListBucketMultipartUploads"
             ],
-            "Resource": "arn:aws:s3:::stage-btl-idlms-repo-backend-api-tfstate-592776312448"
+            "Resource": "arn:aws:s3:::stage-btl-idlms-repo-backend-api-tfstate-881490099206"
         },
         {
             "Sid": "TfStateObjectsRW",
@@ -51,7 +51,7 @@
                 "s3:AbortMultipartUpload",
                 "s3:ListMultipartUploadParts"
             ],
-            "Resource": "arn:aws:s3:::stage-btl-idlms-repo-backend-api-tfstate-592776312448/*"
+            "Resource": "arn:aws:s3:::stage-btl-idlms-repo-backend-api-tfstate-881490099206/*"
         },
         {
             "Sid": "ArtifactBucketList",
@@ -61,7 +61,7 @@
                 "s3:GetBucketLocation",
                 "s3:ListBucketMultipartUploads"
             ],
-            "Resource": "arn:aws:s3:::stage-idlms-artifacts-592776312448"
+            "Resource": "arn:aws:s3:::stage-idlms-artifacts-881490099206"
         },
         {
             "Sid": "ArtifactObjectsRW",
@@ -74,7 +74,7 @@
                 "s3:AbortMultipartUpload",
                 "s3:ListMultipartUploadParts"
             ],
-            "Resource": "arn:aws:s3:::stage-idlms-artifacts-592776312448/*"
+            "Resource": "arn:aws:s3:::stage-idlms-artifacts-881490099206/*"
         },
         {
             "Sid": "TfLocks",
@@ -86,7 +86,7 @@
                 "dynamodb:DeleteItem",
                 "dynamodb:UpdateItem"
             ],
-            "Resource": "arn:aws:dynamodb:ap-south-1:592776312448:table/*"
+            "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/*"
         },
         {
             "Sid": "TfLocksExtras",
@@ -100,7 +100,7 @@
                 "dynamodb:TagResource",
                 "dynamodb:UntagResource"
             ],
-            "Resource": "arn:aws:dynamodb:ap-south-1:592776312448:table/*"
+            "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/*"
         },
         {
             "Sid": "TfLocksCreateOnce",
@@ -117,7 +117,7 @@
             "Action": [
                 "dynamodb:DeleteTable"
             ],
-            "Resource": "arn:aws:dynamodb:ap-south-1:592776312448:table/*"
+            "Resource": "arn:aws:dynamodb:ap-south-1:881490099206:table/*"
         },
         {
             "Sid": "EcrAuth",
@@ -150,7 +150,7 @@
                 "ecr:BatchDeleteImage",
                 "ecr:DeleteRepositoryPolicy"
             ],
-            "Resource": "arn:aws:ecr:ap-south-1:592776312448:repository/*"
+            "Resource": "arn:aws:ecr:ap-south-1:881490099206:repository/*"
         },
         {
             "Sid": "EcrCreateRepository",
@@ -173,15 +173,7 @@
                 "ssm:RemoveTagsFromResource",
                 "ssm:ListTagsForResource"
             ],
-            "Resource": [
-                "arn:aws:ssm:ap-south-1:592776312448:parameter/idlms/shared/*",
-                "arn:aws:ssm:ap-south-1:592776312448:parameter/idlms/license-api/*",
-                "arn:aws:ssm:ap-south-1:592776312448:parameter/idlms/reuse/*",
-                "arn:aws:ssm:ap-south-1:592776312448:parameter/idlms/*",
-                "arn:aws:ssm:ap-south-1:592776312448:parameter/idlms/test/*",
-                "arn:aws:ssm:ap-south-1:592776312448:parameter/vitalreg/*",
-                "arn:aws:ssm:ap-south-1:592776312448:parameter/stage-cloudwatch/*"
-            ]
+            "Resource": "arn:aws:ssm:ap-south-1:881490099206:parameter/idlms/*/*/.env"
         },
         {
             "Sid": "SsmPublicAmiParams",
