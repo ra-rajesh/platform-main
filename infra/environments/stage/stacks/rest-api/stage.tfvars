@@ -1,20 +1,29 @@
 env_name = "stage"
 region   = "ap-south-1"
 
-# Must match your NLB SSM writer
-# e.g., if your NLB stack stored:
-#   /platform/stage/nlb/lb_arn
-#   /platform/stage/nlb/lb_dns_name
+api_name    = "idlms-api"
+stage_name  = "stage"
+description = "IDLMS REST API for stage"
+
+# must match your NLB SSM path from the NLB stack
 nlb_ssm_prefix = "/idlms/nlb/stage"
 
-# Optional overrides
-api_name      = "idlms-api"
-stage_name    = "stage"
-endpoint_type = "REGIONAL"
-
 routes = {
-  "idlms-reuse" = { port = 4000 }
-  "idlms-test"  = { port = 4010 }
+  "idlms-app"    = { port = 4000, health_path = "/health" }
+  "vitalreg-app" = { port = 4010, health_path = "/health" }
 }
 
-tags = { env = "stage", team = "idlms" }
+# keep as REGIONAL unless you have a custom edge requirement
+endpoint_type = "REGIONAL"
+
+# logging knobs (keep your previous values if you had them)
+access_log_retention_days = 30
+enable_execution_logs     = true
+execution_metrics_enabled = true
+execution_data_trace      = false
+
+tags = {
+  Environment = "stage"
+  Project     = "IDLMS"
+  Stack       = "rest-api"
+}

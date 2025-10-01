@@ -7,14 +7,16 @@ module "rest_api" {
   stage_name  = var.stage_name
   description = var.description
 
+  # reads NLB attributes (dns, zone id, listener arns, etc.) via SSM
   nlb_ssm_prefix = var.nlb_ssm_prefix
-  endpoint_type  = var.endpoint_type
 
+  # path -> port mapping (and optional health_path)
   routes = var.routes
+
+  endpoint_type = var.endpoint_type
 
   access_log_retention_days = var.access_log_retention_days
   enable_execution_logs     = var.enable_execution_logs
-
   execution_metrics_enabled = var.execution_metrics_enabled
   execution_data_trace      = var.execution_data_trace
 

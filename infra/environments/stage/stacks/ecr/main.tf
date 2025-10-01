@@ -16,22 +16,25 @@ locals {
 }
 
 resource "aws_ssm_parameter" "repo_url" {
-  for_each = local._repo_indexes
-  name     = "/idlms/ecr/${var.env_name}/${each.key}/repository_url"
-  type     = "String"
-  value    = module.ecr.repository_urls[each.value]
+  for_each  = local._repo_indexes
+  name      = "/idlms/ecr/${var.env_name}/${each.key}/repository_url"
+  type      = "String"
+  value     = module.ecr.repository_urls[each.value]
+  overwrite = true
 }
 
 resource "aws_ssm_parameter" "repo_arn" {
-  for_each = local._repo_indexes
-  name     = "/idlms/ecr/${var.env_name}/${each.key}/repository_arn"
-  type     = "String"
-  value    = module.ecr.repository_arns[each.value]
+  for_each  = local._repo_indexes
+  name      = "/idlms/ecr/${var.env_name}/${each.key}/repository_arn"
+  type      = "String"
+  value     = module.ecr.repository_arns[each.value]
+  overwrite = true
 }
 
 resource "aws_ssm_parameter" "repo_name" {
-  for_each = local._repo_indexes
-  name     = "/idlms/ecr/${var.env_name}/${each.key}/repository_name"
-  type     = "String"
-  value    = module.ecr.repository_names[each.value]
+  for_each  = local._repo_indexes
+  name      = "/idlms/ecr/${var.env_name}/${each.key}/repository_name"
+  type      = "String"
+  value     = module.ecr.repository_names[each.value]
+  overwrite = true
 }

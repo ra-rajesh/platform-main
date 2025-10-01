@@ -1,7 +1,7 @@
 env_name = "stage"
 region   = "ap-south-1"
 
-repositories    = ["idlms-reuse", "idlms-test"]
+repositories    = ["idlms-app", "vitalreg-app"]
 prefix_with_env = true
 scan_on_push    = true
 force_delete    = true

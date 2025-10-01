@@ -1,9 +1,0 @@
-terraform {
-  backend "s3" {
-    bucket         = "stage-btl-idlms-backend-api-tfstate-881490099206"
-    key            = "stage/cloudwatch/terraform.tfstate"
-    region         = "ap-south-1"
-    dynamodb_table = "platform-main-terraform-locks"
-    encrypt        = true
-  }
-}

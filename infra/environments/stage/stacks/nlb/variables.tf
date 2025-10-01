@@ -1,8 +1,16 @@
-variable "env_name" { type = string }
-variable "region" { type = string }
+variable "env_name" {
+  type = string
+}
+variable "region" {
+  type = string
+}
 
-variable "tf_state_bucket" { type = string }
-variable "tf_state_region" { type = string }
+variable "tf_state_bucket" {
+  type = string
+}
+variable "tf_state_region" {
+  type = string
+}
 
 variable "ports" {
   type = list(number)
@@ -38,5 +46,10 @@ variable "ssm_prefix" {
   default = ""
 }
 
-variable "network_state_key" { type = string }
-variable "compute_state_key" { type = string }
+variable "network_state_key" {
+  type = string
+}
+
+variable "compute_state_key" {
+  type = string
+}

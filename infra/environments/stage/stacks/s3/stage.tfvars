@@ -1,10 +1,10 @@
-env_name = "stage"
-region   = "ap-south-1"
+env_name              = "stage"
+region                = "ap-south-1"
+state_bucket_name     = "stage-btl-idlms-repo-backend-api-tfstate-592776312448"
+artifacts_bucket_name = "stage-idlms-artifacts-592776312448"
 
-artifact_bucket_name_override = "stage-btl-idlms-backend-api-artifact-881490099206"
-ssm_prefix                    = "/idlms/artifacts"
-
-common_tags = {
-  Environment = "stage"
-  Project     = "IDLMS"
+tags = {
+  "user:Project" = "IDLMS"
+  "user:Env"     = "stage"
+  "user:Stack"   = "s3"
 }

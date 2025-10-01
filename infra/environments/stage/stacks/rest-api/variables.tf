@@ -26,21 +26,18 @@ variable "description" {
 }
 
 variable "endpoint_type" {
-  type    = string
-  default = "REGIONAL"
+  type = string
 }
 
 # NEW: path -> port map
+
 variable "routes" {
   type = map(object({
     port        = number
     health_path = optional(string, "/health")
   }))
-  default = {
-    "idlms-reuse" = { port = 4000, health_path = "/health" }
-    "idlms-test"  = { port = 4010, health_path = "/health" }
-  }
 }
+
 
 variable "access_log_retention_days" {
   type    = number

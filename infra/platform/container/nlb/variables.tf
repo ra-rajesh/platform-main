@@ -72,8 +72,3 @@ variable "ssm_prefix" {
   default     = ""
   description = "If set, write lb_arn/lb_dns_name/lb_zone_id to this SSM path"
 }
-
-variable "publish_to_ssm" {
-  type    = bool
-  default = false
-}

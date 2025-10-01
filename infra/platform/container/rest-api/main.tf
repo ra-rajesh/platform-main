@@ -177,11 +177,11 @@ resource "aws_cloudwatch_log_group" "access_logs" {
   tags              = var.tags
 }
 
-resource "aws_cloudwatch_log_group" "execution_logs" {
-  name              = "/aws/api-gateway/${var.stage_name}/${var.api_name}/execution"
-  retention_in_days = var.access_log_retention_days
-  tags              = var.tags
-}
+# resource "aws_cloudwatch_log_group" "execution_logs" {
+#   name              = "/aws/api-gateway/${var.stage_name}/${var.api_name}/execution"
+#   retention_in_days = var.access_log_retention_days
+#   tags              = var.tags
+# }
 
 resource "aws_api_gateway_stage" "this" {
   rest_api_id   = aws_api_gateway_rest_api.this.id
@@ -190,21 +190,9 @@ resource "aws_api_gateway_stage" "this" {
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.access_logs.arn
-    format = jsonencode({
-      requestId          = "$context.requestId"
-      ip                 = "$context.identity.sourceIp"
-      caller             = "$context.identity.caller"
-      user               = "$context.identity.user"
-      requestTime        = "$context.requestTime"
-      httpMethod         = "$context.httpMethod"
-      resourcePath       = "$context.resourcePath"
-      status             = "$context.status"
-      protocol           = "$context.protocol"
-      responseLength     = "$context.responseLength"
-      integrationStatus  = "$context.integration.status"
-      integrationError   = "$context.integration.error"
-      integrationLatency = "$context.integration.latency"
-    })
+    format          = <<EOF
+{"timestamp":"$context.requestTime","apiId":"$context.apiId","domainName":"$context.domainName","httpMethod":"$context.httpMethod","path":"$context.resourcePath","protocol":"$context.protocol","requestId":"$context.requestId","responseLatency":$context.responseLatency,"responseLength":$context.responseLength,"sourceIp":"$context.identity.sourceIp","stage":"$context.stage","status":$context.status,"userAgent":"$context.identity.userAgent","integrationStatus":$context.integrationStatus,"error":"$context.error.message","integrationError":"$context.integrationErrorMessage"}
+EOF
   }
 
   tags = var.tags

@@ -7,6 +7,12 @@ variable "private_subnet_ids" { type = list(string) }
 
 # instance settings
 variable "ec2_name" { type = string }
+variable "user_data" {
+  type        = string
+  default     = null
+  description = "Optional plain-text user_data for EC2; null/empty to omit or use module default."
+}
+
 variable "instance_type" { type = string }
 variable "key_name" { type = string }
 variable "app_ports" { type = list(number) }
@@ -45,17 +51,4 @@ variable "existing_instance_profile_name" {
 variable "tags" {
   type    = map(string)
   default = {}
-}
-
-variable "user_data" {
-  type    = string
-  default = ""
-}
-variable "ec2_ssm_role_name" {
-  type    = string
-  default = null
-}
-variable "ec2_ssm_profile_name" {
-  type    = string
-  default = null
 }

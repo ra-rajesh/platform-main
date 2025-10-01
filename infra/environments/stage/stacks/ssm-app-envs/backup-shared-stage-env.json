@@ -1,0 +1,11 @@
+{
+    "Parameter": {
+        "Name": "/idlms/shared/stage/.env",
+        "Type": "SecureString",
+        "Value": "NODE_ENV=development\nPORT=4000\nORIGINS=*\nAPP_AWS_REGION=ap-south-1\n\nJWT_SECRET=devsecret\nAPI_CLIENT_JWT_SECRET=devclientsecret\nAPI_CLIENT_JWT_EXPIRES_IN=1d\n\nDB_HOST=demo-db\nDB_PORT=5432\nDB_NAME=idlms\nDB_USERNAME=idlms\nDB_PASSWORD=idlms\nAUTO_RUN_MIGRATIONS=true\n\nAPP_AWS_ACCESS_KEY_ID=dummy\nAPP_AWS_SECRET_ACCESS_KEY=dummy\nAPP_AWS_ACCOUNT_ID=000000000000\nATTACHMENT_S3_BUCKET=dummy\nAPP_AWS_NOTIFICATIONS_QUEUE_NAME=dummy\nAPP_AWS_ETL_QUEUE_URL=dummy\n\nAPI_BASE_URL=-\nAPI_OPERATION=-\nUSERNAME=-\nSECRETE=-\nNIN_ENDPOINT=-\nNIN_API_KEY=-\nNIN_API_SECRET_KEY=-\nNIN_VERIFICATION=-\nNIN_AUTH_USERNAME=-\nNIN_AUTH_PASSWORD=-\nSMS_HOST=-\nSMS_SENDER=-\nSMS_PUBLIC_KEY=-\nSMS_PRIVATE_KEY=-\nMERCHANT=-\nMERCHANT_NAME=-\nNPC_WEBSITE_LINK=-\nVERIFY_LINK=-\nTOTAL_RESCHEDULE_ATTEMPTS=3\nCBT_MIN_SCORE=45\nSALT_ROUND=10\n\nAPP_PORT=4000\nAPI_LINK=http://localhost:4000\nSITE_LINK=http://localhost:4000\nAPP_NAME=IDLMS Platform\nLONG_APP_NAME=IDLMS Platform Demo\n",
+        "Version": 10,
+        "LastModifiedDate": "2025-09-26T18:13:06.829000+05:30",
+        "ARN": "arn:aws:ssm:ap-south-1:592776312448:parameter/idlms/shared/stage/.env",
+        "DataType": "text"
+    }
+}

@@ -1,12 +1,15 @@
-# Partition is needed to build a correct ARN (aws, aws-cn, aws-us-gov)
-data "aws_partition" "current" {}
-
-output "artifact_bucket_name" {
-  description = "Artifact bucket name (created or external override)"
-  value       = local.bucket_name
+output "state_bucket_name" {
+  value = aws_s3_bucket.state.bucket
 }
 
-output "artifact_bucket_arn" {
-  description = "Artifact bucket ARN (works whether created by TF or provided via override)"
-  value       = "arn:${data.aws_partition.current.partition}:s3:::${local.bucket_name}"
+output "state_bucket_arn" {
+  value = aws_s3_bucket.state.arn
+}
+
+output "artifacts_bucket_name" {
+  value = aws_s3_bucket.artifacts.bucket
+}
+
+output "artifacts_bucket_arn" {
+  value = aws_s3_bucket.artifacts.arn
 }

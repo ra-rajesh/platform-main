@@ -1,14 +1,17 @@
-**/.terraform/*
-*.tfstate
-*.tfstate.*
-!.terraform.lock.hcl
-!**/templates.tfvars
-crash.log
-crash.*.log
-override.tf
-override.tf.json
-*_override.tf
-*_override.tf.json
+# Terraform junk / locals
 .terraform/
-.terraform.lock.hcl
+.terraform.tfstate.lock.info
+terraform.tfstate
+terraform.tfstate.backup
+terraform.tfstate.d/
+crash.log
+
+# Saved plan files
+*.tfplan
+*.plan
 *.out
+
+# Vars and sensitive files (if you keep them local)
+*.tfvars.json
+plan.out
+*.bak

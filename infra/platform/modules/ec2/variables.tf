@@ -47,7 +47,7 @@ variable "cloudwatch_ssm_config_path" {
 
 variable "user_data" {
   type        = string
-  default     = ""
+  default     = null
   description = "Optional custom user-data; if null, module uses a sane Ubuntu script"
 }
 

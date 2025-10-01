@@ -13,7 +13,6 @@ locals {
   ami_effective = var.ami_id != null && var.ami_id != "" ? var.ami_id : data.aws_ssm_parameter.ami_latest.value
 }
 
-# SG MODULE — expects: vpc_id, sg_name, ingress_ports
 module "sg_app" {
   source        = "../../modules/sg"
   vpc_id        = var.vpc_id
@@ -26,9 +25,9 @@ module "sg_app" {
 module "iam_ssm" {
   source                         = "../../modules/iam/ssm_instance"
   name                           = "${var.env_name}-ec2-ssm"
-  existing_role_name             = var.ec2_ssm_role_name
-  existing_instance_profile_name = var.ec2_ssm_profile_name
   tags                           = var.tags
+  existing_role_name             = var.existing_iam_role_name
+  existing_instance_profile_name = var.existing_instance_profile_name
 }
 
 # EC2 MODULE — expects: security_group_ids, instance_profile_name
@@ -41,6 +40,6 @@ module "ec2" {
   security_group_ids         = [module.sg_app.security_group_id]
   instance_profile_name      = module.iam_ssm.instance_profile_name
   key_name                   = var.key_name
-  user_data                  = var.user_data
   cloudwatch_ssm_config_path = var.cloudwatch_ssm_config_path
+  user_data                  = var.user_data
 }

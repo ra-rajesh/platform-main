@@ -2,13 +2,14 @@ terraform {
   required_version = ">= 1.5.0"
   required_providers {
     aws = {
-      source  = "hashicorp/aws",
+      source  = "hashicorp/aws"
       version = ">= 5.0"
     }
   }
 }
 
 locals {
+  # default bootstrap script (kept from your file)
   default_user_data = <<-EOF
     #!/bin/bash
     set -e
@@ -46,10 +47,16 @@ locals {
     done
   EOF
 
+  # Null/empty-safe selection WITHOUT coalesce()
   user_data_final = (
-    length(trimspace(var.user_data)) > 0
-  ) ? var.user_data : local.default_user_data
-
+    var.user_data == null
+    ? local.default_user_data
+    : (
+      trimspace(var.user_data) == ""
+      ? local.default_user_data
+      : trimspace(var.user_data)
+    )
+  )
 }
 
 resource "aws_instance" "idlms_ec2" {

@@ -1,11 +1,14 @@
 terraform {
   required_version = ">= 1.5.0"
   required_providers {
-    aws = { source = "hashicorp/aws", version = ">= 5.0" }
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
   }
 }
 
-# Look up existing only if names are provided
+# Look up existing if provided
 data "aws_iam_role" "existing" {
   count = var.existing_role_name == null ? 0 : 1
   name  = var.existing_role_name

@@ -39,6 +39,3 @@ module "ssm" {
   common_tags = var.common_tags
 }
 
-output "published_names" {
-  value = module.ssm.published_names
-}
