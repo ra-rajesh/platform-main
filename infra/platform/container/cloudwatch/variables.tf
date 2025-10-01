@@ -1,6 +1,6 @@
 variable "env_name" { type = string }
 variable "region" { type = string }
-variable "ssm_param_name" { type = string }
+variable "ssm_param_name" { type = string } # "" disables SSM creation
 variable "docker_log_group_name" { type = string }
 variable "log_stream_name" {
   type    = string

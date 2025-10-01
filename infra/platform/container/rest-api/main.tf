@@ -12,14 +12,16 @@ locals {
   first_route_url = local.first_route == null ? null : "http://${local.nlb_dns_name}:${local.first_route.port}"
 }
 
-# --- IAM role for API Gateway execution logs ---
+# --- IAM role so API Gateway can push execution logs ---
 data "aws_iam_policy_document" "apigw_logs_assume" {
   statement {
     effect = "Allow"
+
     principals {
       type        = "Service"
       identifiers = ["apigateway.amazonaws.com"]
     }
+
     actions = ["sts:AssumeRole"]
   }
 }
@@ -47,11 +49,23 @@ resource "aws_api_gateway_rest_api" "this" {
   name        = "${var.api_name}-${var.env_name}"
   description = var.description
 
-  endpoint_configuration {
-    types = [var.endpoint_type]
-  }
-
+  endpoint_configuration { types = [var.endpoint_type] }
   tags = var.tags
+}
+
+# --- ACCESS LOGS log group (name you control) ---
+resource "aws_cloudwatch_log_group" "access_logs" {
+  name              = "/aws/api-gateway/${var.stage_name}/${var.api_name}/access"
+  retention_in_days = var.access_log_retention_days
+  tags              = var.tags
+}
+
+# --- EXECUTION LOGS log group (AWS canonical name w/ RestApiId & StageName) ---
+resource "aws_cloudwatch_log_group" "execution_logs" {
+  count             = var.enable_execution_logs ? 1 : 0
+  name              = "API-Gateway-Execution-Logs_${aws_api_gateway_rest_api.this.id}/${var.stage_name}"
+  retention_in_days = var.access_log_retention_days
+  tags              = var.tags
 }
 
 # --- ROOT (GET /) → first route's /health ---
@@ -75,7 +89,7 @@ resource "aws_api_gateway_integration" "root_get" {
   uri                     = "${local.first_route_url}${local.first_route.health_path}"
 }
 
-# --- For each route: resources (/app & /app/{proxy+}) ---
+# --- /{app} and /{app}/{proxy+} resources ---
 resource "aws_api_gateway_resource" "route_base" {
   for_each    = local.routes
   rest_api_id = aws_api_gateway_rest_api.this.id
@@ -90,7 +104,7 @@ resource "aws_api_gateway_resource" "route_proxy" {
   path_part   = "{proxy+}"
 }
 
-# --- Base path ANY on /{app} -> http://NLB:<port>/ ---
+# --- ANY on /{app} -> http://NLB:<port>/ ---
 resource "aws_api_gateway_method" "route_base_any" {
   for_each      = local.routes
   rest_api_id   = aws_api_gateway_rest_api.this.id
@@ -111,7 +125,7 @@ resource "aws_api_gateway_integration" "route_base_any" {
   uri                     = "http://${local.nlb_dns_name}:${each.value.port}/"
 }
 
-# --- Proxy ANY on /{app}/{proxy+} -> http://NLB:<port>/{proxy} ---
+# --- ANY on /{app}/{proxy+} -> http://NLB:<port>/{proxy} ---
 resource "aws_api_gateway_method" "route_any" {
   for_each      = local.routes
   rest_api_id   = aws_api_gateway_rest_api.this.id
@@ -152,18 +166,10 @@ resource "aws_api_gateway_deployment" "this" {
     ]))
   }
 
-  lifecycle {
-    create_before_destroy = true
-  }
+  lifecycle { create_before_destroy = true }
 }
 
-# --- Stage with Access logs ---
-resource "aws_cloudwatch_log_group" "access_logs" {
-  name              = "/aws/api-gateway/${var.stage_name}/${var.api_name}/access"
-  retention_in_days = var.access_log_retention_days
-  tags              = var.tags
-}
-
+# --- Stage with ACCESS logs enabled ---
 resource "aws_api_gateway_stage" "this" {
   rest_api_id   = aws_api_gateway_rest_api.this.id
   stage_name    = var.stage_name
@@ -179,12 +185,12 @@ EOF
   tags = var.tags
 }
 
-# --- Allow API Gateway to write execution logs ---
+# --- Allow API Gateway to push EXECUTION logs ---
 resource "aws_api_gateway_account" "this" {
   cloudwatch_role_arn = aws_iam_role.apigw_logs.arn
 }
 
-# --- Method settings (INFO logs/metrics) ---
+# --- Toggle execution logs/metrics ---
 resource "aws_api_gateway_method_settings" "all" {
   count       = var.enable_execution_logs ? 1 : 0
   rest_api_id = aws_api_gateway_rest_api.this.id
@@ -193,9 +199,9 @@ resource "aws_api_gateway_method_settings" "all" {
 
   settings {
     metrics_enabled    = var.execution_metrics_enabled
-    logging_level      = "INFO"
+    logging_level      = "INFO" # or "ERROR"
     data_trace_enabled = var.execution_data_trace
   }
 
-  depends_on = [aws_api_gateway_stage.this, aws_api_gateway_account.this]
+  depends_on = [aws_api_gateway_stage.this, aws_api_gateway_account.this, aws_cloudwatch_log_group.execution_logs]
 }

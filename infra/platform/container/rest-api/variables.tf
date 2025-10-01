@@ -1,7 +1,6 @@
 variable "env_name" {
   type = string
 }
-
 variable "region" {
   type = string
 }
@@ -21,7 +20,7 @@ variable "description" {
   default = "IDLMS shared REST API (Option B: path -> backend route)"
 }
 
-# Path -> { port, optional health_path }
+# path -> { port, optional health_path }
 variable "routes" {
   type = map(object({
     port        = number
@@ -63,10 +62,10 @@ variable "tags" {
   default = {}
 }
 
+# NEW — pass NLB directly (no SSM)
 variable "nlb_arn" {
   type = string
 }
-
 variable "nlb_dns_name" {
   type = string
 }
