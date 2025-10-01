@@ -52,10 +52,3 @@ resource "aws_ssm_parameter" "agent_config" {
   tags        = merge({ Environment = var.env_name }, var.tags)
 }
 
-output "docker_log_group_name" {
-  value = aws_cloudwatch_log_group.docker.name
-}
-
-output "ssm_param_name" {
-  value = var.ssm_param_name
-}
