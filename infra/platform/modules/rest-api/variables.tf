@@ -7,9 +7,14 @@ variable "stage_name" {
   description = "e.g., 'prod' or 'stage'"
 }
 
+variable "api_name" {
+  type = string
+}
+
+
 variable "api_description" {
   type    = string
-  default = "IDLMS REST API"
+  default = " REST API"
 }
 
 variable "binary_media_types" {

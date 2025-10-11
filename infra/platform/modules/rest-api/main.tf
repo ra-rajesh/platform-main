@@ -8,10 +8,9 @@ terraform {
   }
 }
 
-
-# Role to push API Gateway logs to CloudWatch
 resource "aws_iam_role" "apigw_cw" {
   name = "${var.environment}-apigw-cloudwatch-role"
+
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [{
@@ -20,6 +19,7 @@ resource "aws_iam_role" "apigw_cw" {
       Action    = "sts:AssumeRole"
     }]
   })
+
   tags = var.common_tags
 }
 
@@ -28,32 +28,42 @@ resource "aws_iam_role_policy_attachment" "apigw_cw_attach" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs"
 }
 
+# This wires the role into your API Gateway account for execution logging
 resource "aws_api_gateway_account" "account" {
   cloudwatch_role_arn = aws_iam_role.apigw_cw.arn
   depends_on          = [aws_iam_role_policy_attachment.apigw_cw_attach]
 }
 
-# VPC Link to the NLB
 resource "aws_api_gateway_vpc_link" "this" {
   name        = "${var.environment}-vpc-link"
   target_arns = var.vpc_link_target_arns
   tags        = var.common_tags
 }
 
-# API logs
+
+# Access logs (one JSON line per request)
 resource "aws_cloudwatch_log_group" "api_logs" {
   name              = "/aws/api-gateway/${var.environment}-api"
   retention_in_days = var.log_retention_days
   tags              = var.common_tags
 }
 
-# REST API
+# Note: requires the REST API ID, so we define it after the API is created.
+resource "aws_cloudwatch_log_group" "api_execution_logs" {
+  name              = "API-Gateway-Execution-Logs_${aws_api_gateway_rest_api.this.id}/${var.stage_name}"
+  retention_in_days = var.log_retention_days
+  tags              = var.common_tags
+}
+
 resource "aws_api_gateway_rest_api" "this" {
-  name               = "${var.environment}-rest-api-idlms"
+  name               = "${var.environment}-${var.api_name}"
   description        = "${var.api_description} — ${timestamp()}"
   binary_media_types = var.binary_media_types
 
-  endpoint_configuration { types = ["REGIONAL"] }
+  endpoint_configuration {
+    types = ["REGIONAL"]
+  }
+
   tags = var.common_tags
 }
 
@@ -107,12 +117,12 @@ resource "aws_api_gateway_integration" "proxy" {
   connection_id           = aws_api_gateway_vpc_link.this.id
   passthrough_behavior    = "WHEN_NO_MATCH"
   content_handling        = "CONVERT_TO_BINARY"
+
   request_parameters = {
     "integration.request.path.proxy" = "method.request.path.proxy"
   }
 }
 
-# Deployment & Stage
 resource "aws_api_gateway_deployment" "this" {
   rest_api_id = aws_api_gateway_rest_api.this.id
   description = "Deployed on ${timestamp()}"
@@ -128,6 +138,7 @@ resource "aws_api_gateway_stage" "default" {
   rest_api_id   = aws_api_gateway_rest_api.this.id
   deployment_id = aws_api_gateway_deployment.this.id
 
+  # ACCESS LOGS → /aws/api-gateway/${var.environment}-api
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_logs.arn
     format = jsonencode({
@@ -155,11 +166,11 @@ resource "aws_api_gateway_stage" "default" {
 
   depends_on = [
     aws_cloudwatch_log_group.api_logs,
+    aws_cloudwatch_log_group.api_execution_logs,
     aws_api_gateway_account.account
   ]
 }
 
-# Global method settings (*/*)
 resource "aws_api_gateway_method_settings" "all" {
   rest_api_id = aws_api_gateway_rest_api.this.id
   stage_name  = var.stage_name

@@ -1,12 +1,13 @@
 locals {
-  env_name = "stage"
+  env_name = var.env_name
   tags = {
-    "user:Project" = "IDLMS"
+    "user:Project" = "Platform-Main"
     "user:Env"     = local.env_name
     "user:Stack"   = "nlb"
   }
 }
 
+# --- Remote state: network ---
 data "terraform_remote_state" "network" {
   backend = "s3"
   config = {
@@ -17,6 +18,7 @@ data "terraform_remote_state" "network" {
   }
 }
 
+# --- Remote state: compute ---
 data "terraform_remote_state" "compute" {
   backend = "s3"
   config = {
@@ -28,24 +30,35 @@ data "terraform_remote_state" "compute" {
 }
 
 module "nlb" {
-  source = "../../../../platform/container/nlb"
+  source = "../../../../platform/modules/nlb"
 
-  env_name = local.env_name
-  name     = "${local.env_name}-idlms-nlb"
-
+  env_name   = var.env_name
+  nlb_name   = var.nlb_name
   vpc_id     = data.terraform_remote_state.network.outputs.vpc_id
   subnet_ids = data.terraform_remote_state.network.outputs.private_subnet_ids
 
-  internal   = true
-  cross_zone = true
-  protocol   = "TCP"
-  ports      = var.ports
+  # Make it like IDLMSReplatforming: IP targets on selected ports
+  target_type  = "ip"
+  ip_addresses = [data.terraform_remote_state.compute.outputs.instance_private_ip]
+  ports        = var.ports
+  internal     = var.internal
+  cross_zone   = true
 
-  # If not provided in tfvars, fall back to compute's single instance_id
-  target_instance_ids = length(var.target_instance_ids) > 0 ? var.target_instance_ids : [
-    try(data.terraform_remote_state.compute.outputs.instance_id, "")
-  ]
+  # Health check knobs are defaults in the module, override if needed:
+  # health_check_protocol = "TCP"
 
-  ssm_prefix = var.ssm_prefix
-  tags       = local.tags
+  tags = local.tags
+}
+resource "aws_ssm_parameter" "lb_dns" {
+  count = var.ssm_prefix == "" ? 0 : 1
+  name  = "${var.ssm_prefix}/lb_dns_name"
+  type  = "String"
+  value = module.nlb.lb_dns_name
+}
+
+resource "aws_ssm_parameter" "lb_zone" {
+  count = var.ssm_prefix == "" ? 0 : 1
+  name  = "${var.ssm_prefix}/lb_zone_id"
+  type  = "String"
+  value = module.nlb.lb_zone_id
 }

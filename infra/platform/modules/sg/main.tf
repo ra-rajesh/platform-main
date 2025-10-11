@@ -8,7 +8,7 @@ terraform {
   }
 }
 
-resource "aws_security_group" "idlms_sg" {
+resource "aws_security_group" "platform_main_sg" {
   name        = var.sg_name
   description = var.description
   vpc_id      = var.vpc_id
@@ -52,7 +52,7 @@ resource "aws_vpc_security_group_ingress_rule" "ipv4" {
     "${pair.port}_${replace(replace(pair.cidr, "/", "-"), ".", "_")}" => pair
   }
 
-  security_group_id = aws_security_group.idlms_sg.id
+  security_group_id = aws_security_group.platform_main_sg.id
   cidr_ipv4         = each.value.cidr
   from_port         = each.value.port
   to_port           = each.value.port
@@ -92,7 +92,7 @@ resource "aws_vpc_security_group_ingress_rule" "ipv4" {
 # Egress: allow all (typical). Disable by setting allow_all_egress = false and add your own egress rules.
 resource "aws_vpc_security_group_egress_rule" "all" {
   count             = var.allow_all_egress ? 1 : 0
-  security_group_id = aws_security_group.idlms_sg.id
+  security_group_id = aws_security_group.platform_main_sg.id
   cidr_ipv4         = "0.0.0.0/0"
   ip_protocol       = "-1"
   description       = "Allow all outbound traffic"

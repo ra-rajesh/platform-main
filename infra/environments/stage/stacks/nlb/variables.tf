@@ -5,6 +5,10 @@ variable "region" {
   type = string
 }
 
+variable "nlb_name" {
+  type = string
+}
+
 variable "tf_state_bucket" {
   type = string
 }

@@ -17,7 +17,7 @@ locals {
   name_tags = merge(var.tags, { Environment = var.env_name })
 }
 
-resource "aws_vpc" "idlms_vpc" {
+resource "aws_vpc" "platform_main_vpc" {
   cidr_block           = var.vpc_cidr
   instance_tenancy     = var.instance_tenancy
   enable_dns_support   = var.enable_dns_support

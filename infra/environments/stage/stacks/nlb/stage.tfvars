@@ -1,20 +1,17 @@
 env_name = "stage"
 region   = "ap-south-1"
+nlb_name = "stage-platform-main-nlb"
 
-tf_state_bucket = "stage-btl-idlms-repo-backend-api-tfstate-592776312448"
-tf_state_region = "ap-south-1"
-
-network_state_key = "stage/network/terraform.tfstate"
-compute_state_key = "stage/compute/terraform.tfstate"
+network_state_key = "stage/platform-main/network/terraform.tfstate"
+compute_state_key = "stage/platform-main/compute/terraform.tfstate"
 
 # NLB config
-ports = [4000, 4010]
+ports = []
 
-internal = true
+internal   = true
+ssm_prefix = "/platform-main/nlb/stage"
 
-# ssm_prefix = "/idlms/nlb/stage"
-ssm_prefix = ""
 common_tags = {
   Environment = "stage"
-  Project     = "IDLMS"
+  Project     = "platform-main"
 }

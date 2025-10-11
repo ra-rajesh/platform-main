@@ -1,14 +1,27 @@
+locals {
+  tags = merge(
+    {
+      "user:Project" = "Platform-Main"
+      "user:Env"     = var.env_name
+      "user:Stack"   = "ecr"
+      "Environment"  = var.env_name
+    },
+    var.tags
+  )
+}
+
 module "ecr" {
   source = "../../../../platform/container/ecr"
 
-  env_name             = var.env_name
-  repositories         = var.repositories
-  prefix_with_env      = var.prefix_with_env
-  image_tag_mutability = var.image_tag_mutability
-  scan_on_push         = var.scan_on_push
-  force_delete         = var.force_delete
-  tags                 = var.tags
+  env_name = var.env_name
+  region   = var.region
 
-  # Be explicit: never publish to SSM
-  ssm_prefix = ""
+  repositories          = var.repositories
+  image_tag_mutability  = var.image_tag_mutability
+  scan_on_push          = var.scan_on_push
+  encryption_type       = var.encryption_type
+  lifecycle_policy_json = var.lifecycle_policy_json
+
+  ssm_prefix = var.ssm_prefix
+  tags       = local.tags
 }

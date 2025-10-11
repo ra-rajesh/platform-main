@@ -7,12 +7,8 @@ variable "region" {
 }
 
 variable "repositories" {
-  type = list(string)
-}
-
-variable "prefix_with_env" {
-  type    = bool
-  default = true
+  type        = map(string)
+  description = "Repos to create (key => repo name)"
 }
 
 variable "image_tag_mutability" {
@@ -25,12 +21,26 @@ variable "scan_on_push" {
   default = true
 }
 
-variable "force_delete" {
-  type    = bool
-  default = true
+variable "encryption_type" {
+  type    = string
+  default = "AES256"
+}
+
+variable "lifecycle_policy_json" {
+  type    = string
+  default = null
+}
+
+variable "ssm_prefix" {
+  type        = string
+  default     = "/platform-main"
+  description = "SSM base prefix to publish repo pointers"
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  type = map(string)
+  default = {
+    Project     = "platform-main"
+    Environment = "stage"
+  }
 }

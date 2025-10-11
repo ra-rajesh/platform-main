@@ -1,17 +1,10 @@
-env_name = "stage"
-region   = "ap-south-1"
+region     = "ap-south-1"
+env_name   = "stage"
+api_name   = "apigateway"
+stage_name = "stage"
 
-api_name    = "idlms-api"
-stage_name  = "stage"
-description = "IDLMS REST API for stage"
+routes = {}
 
-# must match your NLB SSM path from the NLB stack
-# nlb_ssm_prefix = "/idlms/nlb/stage"
-
-routes = {
-  "idlms-app"    = { port = 4000, health_path = "/health" }
-  "vitalreg-app" = { port = 4010, health_path = "/health" }
-}
 
 # keep as REGIONAL unless you have a custom edge requirement
 endpoint_type = "REGIONAL"
@@ -24,9 +17,6 @@ execution_data_trace      = false
 
 tags = {
   Environment = "stage"
-  Project     = "IDLMS"
+  Project     = "platform-main"
   Stack       = "rest-api"
 }
-tf_state_bucket = "stage-btl-idlms-repo-backend-api-tfstate-592776312448"
-tf_state_region = "ap-south-1"
-nlb_state_key   = "stage/nlb/terraform.tfstate"

@@ -1,4 +1,4 @@
-name: Terraform Destroy (keep S3 buckets)
+name: Terraform Destroy (latest)
 
 on:
   workflow_dispatch:
@@ -10,18 +10,18 @@ on:
       BRANCH:
         description: "Git ref (branch/tag) to checkout"
         required: true
-        default: "main"
+        default: "feature/btl-3"
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   TF_REGION: ${{ vars.AWS_REGION }}
 
+  # Static keys (same as apply)
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-  TF_BUCKET: ${{ inputs.ENV }}-btl-idlms-repo-backend-api-tfstate-${{ secrets.AWS_ACCOUNT_ID }}
-  TF_LOCK_TABLE: resources-terraform-locks
-  ARTIFACTS_BUCKET: ${{ inputs.ENV }}-idlms-artifacts-${{ secrets.AWS_ACCOUNT_ID }}
+  TF_BUCKET: ${{ inputs.ENV }}-btl-platform-main-repo-backend-tfstate-${{ secrets.AWS_ACCOUNT_ID }}
+  TF_LOCK_TABLE: platform-main-state-lock
 
 jobs:
   destroy:
@@ -39,120 +39,100 @@ jobs:
         with:
           terraform_version: 1.8.5
 
-      # ---------- REST-API ----------
-      - name: Terraform Destroy REST-API
+      - name: Compute remote-state vars
+        run: |
+          echo "TF_VAR_tf_state_bucket=${{ inputs.ENV }}-btl-platform-main-repo-backend-tfstate-${{ secrets.AWS_ACCOUNT_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_tf_state_region=${{ vars.AWS_REGION }}" >> $GITHUB_ENV
+          echo "TF_VAR_network_state_key=${{ inputs.ENV }}/platform-main/network/terraform.tfstate" >> $GITHUB_ENV
+
+      # ---------- CLOUDWATCH ----------
+      - name: Terraform Destroy CloudWatch
         run: |
           set -euo pipefail
-          cd infra/environments/${{ github.event.inputs.ENV }}/stacks/rest-api
-
-          terraform init \
+          cd infra/environments/${{ github.event.inputs.ENV }}/stacks/cloudwatch
+          terraform init -reconfigure \
             -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ github.event.inputs.ENV }}/rest-api/terraform.tfstate" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/cloudwatch/terraform.tfstate" \
             -backend-config="region=${TF_REGION}" \
             -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
             -backend-config="encrypt=true"
-
           terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
 
       # ---------- SSM ----------
       - name: Terraform Destroy SSM
-        if: success()
         run: |
           set -euo pipefail
           cd infra/environments/${{ github.event.inputs.ENV }}/stacks/ssm
-
-          terraform init \
+          terraform init -reconfigure \
             -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ github.event.inputs.ENV }}/ssm/terraform.tfstate" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/ssm/terraform.tfstate" \
             -backend-config="region=${TF_REGION}" \
             -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
             -backend-config="encrypt=true"
+          terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
 
+      # ---------- ECR ----------
+      - name: Terraform Destroy ECR
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          cd infra/environments/${{ github.event.inputs.ENV }}/stacks/ecr
+          terraform init -reconfigure \
+            -backend-config="bucket=${TF_BUCKET}" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/ecr/terraform.tfstate" \
+            -backend-config="region=${TF_REGION}" \
+            -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
+            -backend-config="encrypt=true"
+          terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
+
+      # ---------- REST API ----------
+      - name: Terraform Destroy REST API
+        run: |
+          set -euo pipefail
+          cd infra/environments/${{ github.event.inputs.ENV }}/stacks/rest-api
+          terraform init -reconfigure \
+            -backend-config="bucket=${TF_BUCKET}" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/rest-api/terraform.tfstate" \
+            -backend-config="region=${TF_REGION}" \
+            -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
+            -backend-config="encrypt=true"
           terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
 
       # ---------- NLB ----------
       - name: Terraform Destroy NLB
-        if: success()
         run: |
           set -euo pipefail
           cd infra/environments/${{ github.event.inputs.ENV }}/stacks/nlb
-
-          terraform init \
+          terraform init -reconfigure \
             -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ github.event.inputs.ENV }}/nlb/terraform.tfstate" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/nlb/terraform.tfstate" \
             -backend-config="region=${TF_REGION}" \
             -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
             -backend-config="encrypt=true"
-
           terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
 
       # ---------- COMPUTE ----------
       - name: Terraform Destroy Compute
-        if: success()
         run: |
           set -euo pipefail
           cd infra/environments/${{ github.event.inputs.ENV }}/stacks/compute
-
-          terraform init \
+          terraform init -reconfigure \
             -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ github.event.inputs.ENV }}/compute/terraform.tfstate" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/compute/terraform.tfstate" \
             -backend-config="region=${TF_REGION}" \
             -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
             -backend-config="encrypt=true"
-
-          terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
-
-      # ---------- CLOUDWATCH (app logs: SSM param + Docker log group) ----------
-      - name: Terraform Destroy CloudWatch (app logs)
-        if: success()
-        run: |
-          set -euo pipefail
-          cd infra/environments/${{ github.event.inputs.ENV }}/stacks/cloudwatch-app
-
-          terraform init \
-            -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ github.event.inputs.ENV }}/cloudwatch-app/terraform.tfstate" \
-            -backend-config="region=${TF_REGION}" \
-            -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
-            -backend-config="encrypt=true"
-
           terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
 
       # ---------- NETWORK ----------
       - name: Terraform Destroy Network
-        if: success()
         run: |
           set -euo pipefail
           cd infra/environments/${{ github.event.inputs.ENV }}/stacks/network
-
-          terraform init \
+          terraform init -reconfigure \
             -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ github.event.inputs.ENV }}/network/terraform.tfstate" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/network/terraform.tfstate" \
             -backend-config="region=${TF_REGION}" \
             -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
             -backend-config="encrypt=true"
-
           terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
-
-      # ---------- ECR ----------
-      # Note: Destroy may fail if the repo contains images and your Terraform module does not set force_delete=true.
-      # If that happens, clear images manually or add force_delete in the ECR module.
-      - name: Terraform Destroy ECR
-        if: success()
-        run: |
-          set -euo pipefail
-          cd infra/environments/${{ github.event.inputs.ENV }}/stacks/ecr
-
-          terraform init \
-            -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ github.event.inputs.ENV }}/ecr/terraform.tfstate" \
-            -backend-config="region=${TF_REGION}" \
-            -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
-            -backend-config="encrypt=true"
-
-          terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
-
-      # ---------- S3 (SKIPPED) ----------
-      # Intentionally NOT destroying S3 stack to preserve state and artifacts buckets:
-      # - ${TF_BUCKET}
-      # - ${ARTIFACTS_BUCKET}

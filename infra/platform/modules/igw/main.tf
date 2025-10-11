@@ -8,7 +8,7 @@ terraform {
   }
 }
 
-resource "aws_internet_gateway" "idlms_igw" {
+resource "aws_internet_gateway" "platform_main_igw" {
   vpc_id = var.vpc_id
   tags   = merge(var.common_tags, { Name = var.internet_gateway_name })
 }

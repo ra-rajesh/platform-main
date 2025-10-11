@@ -1,27 +1,58 @@
-locals {
-  nlb_arn      = var.nlb_arn
-  nlb_dns_name = var.nlb_dns_name
-
-  routes = {
-    for k, v in var.routes :
-    k => merge(v, { health_path = try(v.health_path, "/health") })
-  }
-
-  first_route_key = length(keys(local.routes)) > 0 ? sort(keys(local.routes))[0] : null
-  first_route     = local.first_route_key == null ? null : local.routes[local.first_route_key]
-  first_route_url = local.first_route == null ? null : "http://${local.nlb_dns_name}:${local.first_route.port}"
+# --- NLB values: prefer direct, fallback to SSM (only if prefix is provided) ---
+data "aws_ssm_parameter" "lb_arn" {
+  count = var.nlb_arn == null && var.nlb_ssm_prefix != null ? 1 : 0
+  name  = "${var.nlb_ssm_prefix}/stage/lb_arn"
 }
 
-# --- IAM role so API Gateway can push execution logs ---
+data "aws_ssm_parameter" "lb_dns_name" {
+  count = var.nlb_dns_name == null && var.nlb_ssm_prefix != null ? 1 : 0
+  name  = "${var.nlb_ssm_prefix}/stage/lb_dns_name"
+}
+
+locals {
+  # Prefer direct values, else fallback to SSM if enabled and present
+  lb_arn = var.nlb_arn != null ? var.nlb_arn : (var.nlb_ssm_prefix != null && length(data.aws_ssm_parameter.lb_arn) > 0 ? data.aws_ssm_parameter.lb_arn[0].value : null)
+
+  lb_dns_name = var.nlb_dns_name != null ? var.nlb_dns_name : (var.nlb_ssm_prefix != null && length(data.aws_ssm_parameter.lb_dns_name) > 0
+  ? data.aws_ssm_parameter.lb_dns_name[0].value : null)
+
+  # Normalize health_path default
+  routes = {
+    for k, v in var.routes :
+    k => {
+      port        = v.port
+      health_path = coalesce(try(v.health_path, null), "/health")
+    }
+  }
+
+  first_route_key = try(keys(local.routes)[0], null)
+  first_route     = try(local.routes[local.first_route_key], null)
+  first_route_url = (local.first_route_key != null && local.lb_dns_name != null) ? "http://${local.lb_dns_name}:${local.first_route.port}" : null
+}
+
+# Hard validation: ensure we ended up with values from either direct vars or SSM.
+resource "null_resource" "validate_nlb_inputs" {
+  triggers = {
+    lb_arn      = tostring(local.lb_arn)
+    lb_dns_name = tostring(local.lb_dns_name)
+  }
+
+  lifecycle {
+    precondition {
+      condition     = local.lb_arn != null && local.lb_dns_name != null
+      error_message = "NLB details missing. Provide nlb_arn and nlb_dns_name via tfvars, or set nlb_ssm_prefix to a valid SSM path that contains /stage/lb_arn and /stage/lb_dns_name."
+    }
+  }
+}
+
+# --- IAM role for API Gateway execution logs ---
 data "aws_iam_policy_document" "apigw_logs_assume" {
   statement {
     effect = "Allow"
-
     principals {
       type        = "Service"
       identifiers = ["apigateway.amazonaws.com"]
     }
-
     actions = ["sts:AssumeRole"]
   }
 }
@@ -40,35 +71,26 @@ resource "aws_iam_role_policy_attachment" "apigw_logs_attach" {
 # --- VPC Link to NLB ---
 resource "aws_api_gateway_vpc_link" "this" {
   name        = "${var.api_name}-vpc-link-${var.env_name}"
-  target_arns = [local.nlb_arn]
+  target_arns = [local.lb_arn]
   tags        = var.tags
 }
 
 # --- REST API ---
 resource "aws_api_gateway_rest_api" "this" {
-  name        = "${var.api_name}-${var.env_name}"
+  name        = "${var.env_name}-${var.api_name}"
   description = var.description
-
   endpoint_configuration { types = [var.endpoint_type] }
   tags = var.tags
 }
 
-# --- ACCESS LOGS log group (name you control) ---
-resource "aws_cloudwatch_log_group" "access_logs" {
-  name              = "/aws/api-gateway/${var.stage_name}/${var.api_name}/access"
-  retention_in_days = var.access_log_retention_days
-  tags              = var.tags
-}
-
-# --- EXECUTION LOGS log group (AWS canonical name w/ RestApiId & StageName) ---
+# (Optional) Precreate the execution log group so you can see it immediately in CW Logs  # <<<
 resource "aws_cloudwatch_log_group" "execution_logs" {
-  count             = var.enable_execution_logs ? 1 : 0
   name              = "API-Gateway-Execution-Logs_${aws_api_gateway_rest_api.this.id}/${var.stage_name}"
   retention_in_days = var.access_log_retention_days
   tags              = var.tags
 }
 
-# --- ROOT (GET /) → first route's /health ---
+# --- ROOT (GET /) -> first route's /health ---
 resource "aws_api_gateway_method" "root_get" {
   count         = local.first_route_key == null ? 0 : 1
   rest_api_id   = aws_api_gateway_rest_api.this.id
@@ -89,7 +111,7 @@ resource "aws_api_gateway_integration" "root_get" {
   uri                     = "${local.first_route_url}${local.first_route.health_path}"
 }
 
-# --- /{app} and /{app}/{proxy+} resources ---
+# --- For each route: resources & methods ---
 resource "aws_api_gateway_resource" "route_base" {
   for_each    = local.routes
   rest_api_id = aws_api_gateway_rest_api.this.id
@@ -104,7 +126,6 @@ resource "aws_api_gateway_resource" "route_proxy" {
   path_part   = "{proxy+}"
 }
 
-# --- ANY on /{app} -> http://NLB:<port>/ ---
 resource "aws_api_gateway_method" "route_base_any" {
   for_each      = local.routes
   rest_api_id   = aws_api_gateway_rest_api.this.id
@@ -122,20 +143,16 @@ resource "aws_api_gateway_integration" "route_base_any" {
   connection_type         = "VPC_LINK"
   connection_id           = aws_api_gateway_vpc_link.this.id
   integration_http_method = "ANY"
-  uri                     = "http://${local.nlb_dns_name}:${each.value.port}/"
+  uri                     = "http://${local.lb_dns_name}:${each.value.port}/"
 }
 
-# --- ANY on /{app}/{proxy+} -> http://NLB:<port>/{proxy} ---
 resource "aws_api_gateway_method" "route_any" {
-  for_each      = local.routes
-  rest_api_id   = aws_api_gateway_rest_api.this.id
-  resource_id   = aws_api_gateway_resource.route_proxy[each.key].id
-  http_method   = "ANY"
-  authorization = "NONE"
-
-  request_parameters = {
-    "method.request.path.proxy" = true
-  }
+  for_each           = local.routes
+  rest_api_id        = aws_api_gateway_rest_api.this.id
+  resource_id        = aws_api_gateway_resource.route_proxy[each.key].id
+  http_method        = "ANY"
+  authorization      = "NONE"
+  request_parameters = { "method.request.path.proxy" = true }
 }
 
 resource "aws_api_gateway_integration" "route_any" {
@@ -147,61 +164,83 @@ resource "aws_api_gateway_integration" "route_any" {
   connection_type         = "VPC_LINK"
   connection_id           = aws_api_gateway_vpc_link.this.id
   integration_http_method = "ANY"
-  uri                     = "http://${local.nlb_dns_name}:${each.value.port}/{proxy}"
-
-  request_parameters = {
-    "integration.request.path.proxy" = "method.request.path.proxy"
-  }
+  uri                     = "http://${local.lb_dns_name}:${each.value.port}/{proxy}"
+  request_parameters      = { "integration.request.path.proxy" = "method.request.path.proxy" }
 }
 
-# --- Deployment (re-deploy when integrations change) ---
+# Only create deployment if routes exist
 resource "aws_api_gateway_deployment" "this" {
+  count       = var.create_stage_and_deployment ? 1 : 0
   rest_api_id = aws_api_gateway_rest_api.this.id
 
+  # keep your existing triggers; example:
   triggers = {
-    redeploy_hash = sha1(jsonencode([
-      aws_api_gateway_integration.root_get.*.id,
-      values(aws_api_gateway_integration.route_base_any)[*].id,
-      values(aws_api_gateway_integration.route_any)[*].id
-    ]))
+    redeploy_hash = sha1(jsonencode({
+      # include whatever you use to trigger redeploys
+      lb_arn = try(local.lb_arn, null)
+      routes = try(local.routes, {})
+    }))
   }
 
   lifecycle { create_before_destroy = true }
 }
 
-# --- Stage with ACCESS logs enabled ---
+# --- Access logs (stable path per env/api) ---
+resource "aws_cloudwatch_log_group" "access_logs" {
+  name              = "/aws/api-gateway/${var.stage_name}/${var.api_name}/access"
+  retention_in_days = var.access_log_retention_days
+  tags              = var.tags
+}
+
+# Stage
 resource "aws_api_gateway_stage" "this" {
+  count = var.create_stage_and_deployment ? 1 : 0
+
   rest_api_id   = aws_api_gateway_rest_api.this.id
+  deployment_id = aws_api_gateway_deployment.this[0].id
   stage_name    = var.stage_name
-  deployment_id = aws_api_gateway_deployment.this.id
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.access_logs.arn
-    format          = <<EOF
-{"timestamp":"$context.requestTime","apiId":"$context.apiId","domainName":"$context.domainName","httpMethod":"$context.httpMethod","path":"$context.resourcePath","protocol":"$context.protocol","requestId":"$context.requestId","responseLatency":$context.responseLatency,"responseLength":$context.responseLength,"sourceIp":"$context.identity.sourceIp","stage":"$context.stage","status":$context.status,"userAgent":"$context.identity.userAgent","integrationStatus":$context.integrationStatus,"error":"$context.error.message","integrationError":"$context.integrationErrorMessage"}
+
+    format = <<EOF
+{"timestamp":"$context.requestTime","apiId":"$context.apiId","domainName":"$context.domainName","httpMethod":"$context.httpMethod","path":"$context.resourcePath","protocol":"$context.protocol","requestId":"$context.requestId","responseLatency":$context.responseLatency,"responseLength":$context.responseLength,"sourceIp":"$context.identity.sourceIp","stage":"$context.stage","status":$context.status,"userAgent":"$context.identity.userAgent","integrationStatus":"$context.integration.status","integrationLatency":$context.integration.latency,"integrationError":"$context.integration.error"}
 EOF
   }
 
   tags = var.tags
+
+  # Ensure CloudWatch role is in place before stage is evaluated                 # <<<
+  depends_on = [
+    aws_cloudwatch_log_group.access_logs,
+    aws_cloudwatch_log_group.execution_logs, # precreated exec group (optional)
+    aws_iam_role_policy_attachment.apigw_logs_attach
+  ]
 }
 
-# --- Allow API Gateway to push EXECUTION logs ---
+# --- Account-level logs role (singleton) ---
 resource "aws_api_gateway_account" "this" {
   cloudwatch_role_arn = aws_iam_role.apigw_logs.arn
+  depends_on          = [aws_iam_role_policy_attachment.apigw_logs_attach]
 }
 
-# --- Toggle execution logs/metrics ---
+# Global method settings (*/*) → enables EXECUTION LOGGING
 resource "aws_api_gateway_method_settings" "all" {
-  count       = var.enable_execution_logs ? 1 : 0
+  count = var.create_stage_and_deployment ? 1 : 0
+
   rest_api_id = aws_api_gateway_rest_api.this.id
-  stage_name  = aws_api_gateway_stage.this.stage_name
+  stage_name  = var.stage_name
   method_path = "*/*"
 
   settings {
-    metrics_enabled    = var.execution_metrics_enabled
-    logging_level      = "INFO" # or "ERROR"
-    data_trace_enabled = var.execution_data_trace
+    logging_level      = "INFO"
+    metrics_enabled    = true
+    data_trace_enabled = false
   }
 
-  depends_on = [aws_api_gateway_stage.this, aws_api_gateway_account.this, aws_cloudwatch_log_group.execution_logs]
+  # Make execution logging wait until account-level CW role is wired             # <<<
+  depends_on = [
+    aws_api_gateway_stage.this,
+    aws_api_gateway_account.this
+  ]
 }

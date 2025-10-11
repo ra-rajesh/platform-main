@@ -8,9 +8,7 @@ terraform {
   }
 }
 
-# If your VPC is created in THIS module, replace var.vpc_id with aws_vpc.this.id.
-
-resource "aws_subnet" "idlms_public_subnets" {
+resource "aws_subnet" "platform_main_public_subnets" {
   count                   = length(var.public_subnet_cidrs)
   vpc_id                  = var.vpc_id
   cidr_block              = var.public_subnet_cidrs[count.index]
@@ -19,11 +17,13 @@ resource "aws_subnet" "idlms_public_subnets" {
 
   tags = merge(
     var.common_tags,
-    { Name = "IDLMS Public Subnet ${count.index + 1}" }
+    {
+      Name = length(var.public_subnet_names) > 0 ? var.public_subnet_names[count.index] : "${var.env_name} Public Subnet ${count.index + 1}"
+    }
   )
 }
 
-resource "aws_subnet" "idlms_private_subnets" {
+resource "aws_subnet" "platform_main_private_subnets" {
   count             = length(var.private_subnet_cidrs)
   vpc_id            = var.vpc_id
   cidr_block        = var.private_subnet_cidrs[count.index]
@@ -31,6 +31,8 @@ resource "aws_subnet" "idlms_private_subnets" {
 
   tags = merge(
     var.common_tags,
-    { Name = "IDLMS Private Subnet ${count.index + 1}" }
+    {
+      Name = length(var.private_subnet_names) > 0 ? var.private_subnet_names[count.index] : "${var.env_name} Private Subnet ${count.index + 1}"
+    }
   )
 }

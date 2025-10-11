@@ -1,27 +1,36 @@
 variable "vpc_id" {
-  description = "VPC ID to place the subnets in"
-  type        = string
+  type = string
+}
+
+variable "env_name" {
+  type = string
 }
 
 variable "azs" {
-  description = "Availability Zones to use, in order (must match number of subnets)"
-  type        = list(string)
+  type = list(string)
 }
 
 variable "public_subnet_cidrs" {
-  description = "CIDR blocks for public subnets, in AZ order"
-  type        = list(string)
+  type = list(string)
 }
 
 variable "private_subnet_cidrs" {
-  description = "CIDR blocks for private subnets, in AZ order"
-  type        = list(string)
+  type = list(string)
+}
+
+variable "public_subnet_names" {
+  type    = list(string)
+  default = []
+}
+
+variable "private_subnet_names" {
+  type    = list(string)
+  default = []
 }
 
 variable "common_tags" {
-  description = "Common tags applied to all subnets"
-  type        = map(string)
-  default     = {}
+  type    = map(string)
+  default = {}
 }
 
 # # --- Validations to ensure lengths match ---

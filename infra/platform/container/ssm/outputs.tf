@@ -1,4 +1,2 @@
-output "published_names" {
-  value       = module.ssm.published_names
-  description = "List of SSM parameter names created/updated"
-}
+output "published_parameter_names" { value = module.publisher.names }
+output "published_parameter_count" { value = module.publisher.count }

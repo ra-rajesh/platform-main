@@ -18,17 +18,22 @@ module "vpc" {
 # 2) Subnets (needs azs & CIDR lists)
 module "subnets" {
   source               = "../../modules/subnets"
+  env_name             = var.env_name
   vpc_id               = module.vpc.vpc_id
   azs                  = var.azs
   public_subnet_cidrs  = var.public_subnet_cidrs
   private_subnet_cidrs = var.private_subnet_cidrs
+  public_subnet_names  = var.public_subnet_names
+  private_subnet_names = var.private_subnet_names
+  common_tags          = var.tags
+
 }
 
 # 3) Internet Gateway
 module "igw" {
   source                = "../../modules/igw"
   vpc_id                = module.vpc.vpc_id
-  internet_gateway_name = "${var.env_name}-igw"
+  internet_gateway_name = var.internet_gateway_name
   common_tags           = var.tags
 }
 
@@ -36,18 +41,20 @@ module "igw" {
 module "nat" {
   source            = "../../modules/natgw"
   public_subnet_ids = module.subnets.public_subnet_ids
-  nat_gateway_name  = "${var.env_name}-natgw"
+  nat_gateway_name  = var.nat_gateway_name
   common_tags       = var.tags
 }
 
 # 5) Route tables (public + private)
+
 module "rt" {
-  source              = "../../modules/rt"
-  vpc_id              = module.vpc.vpc_id
-  internet_gateway_id = module.igw.internet_gateway_id
-  nat_gateway_id      = module.nat.nat_gateway_id
-  route_table_name    = "${var.env_name}-rt"
-  common_tags         = var.tags
+  source                   = "../../modules/rt"
+  vpc_id                   = module.vpc.vpc_id
+  internet_gateway_id      = module.igw.internet_gateway_id
+  nat_gateway_id           = module.nat.nat_gateway_id
+  route_table_public_name  = var.route_table_public_name
+  route_table_private_name = var.route_table_private_name
+  common_tags              = var.tags
 }
 
 # 6) Associations (run twice: once for public, once for private)

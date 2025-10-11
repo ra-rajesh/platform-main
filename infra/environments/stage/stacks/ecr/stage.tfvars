@@ -1,12 +1,14 @@
-env_name = "stage"
-region   = "ap-south-1"
+env_name             = "stage"
+region               = "ap-south-1"
+repositories         = {}
+image_tag_mutability = "MUTABLE"
+scan_on_push         = true
+encryption_type      = "AES256"
 
-repositories    = ["idlms-app", "vitalreg-app"]
-prefix_with_env = true
-scan_on_push    = true
-force_delete    = true
+# Publish to SSM for convenience
+ssm_prefix = "/platform-main"
 
 tags = {
+  Project     = "platform-main"
   Environment = "stage"
-  Project     = "IDLMS"
 }

@@ -26,3 +26,17 @@ output "vpc_link_id" {
 output "api_logs_group" {
   value = aws_cloudwatch_log_group.api_logs.name
 }
+
+output "api_execution_logs_group" {
+  description = "CloudWatch log group that holds API Gateway execution logs"
+  value       = aws_cloudwatch_log_group.api_execution_logs.name
+}
+
+# (Optional) ARNs for convenience
+output "api_logs_group_arn" {
+  value = aws_cloudwatch_log_group.api_logs.arn
+}
+
+output "api_execution_logs_group_arn" {
+  value = aws_cloudwatch_log_group.api_execution_logs.arn
+}

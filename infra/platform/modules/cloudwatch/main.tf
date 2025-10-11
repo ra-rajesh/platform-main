@@ -1,94 +1,82 @@
 terraform {
   required_version = ">= 1.5.0"
   required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = ">= 5.0"
-    }
+    aws = { source = "hashicorp/aws", version = ">= 5.0" }
   }
 }
+locals {
+  tags = merge({
+    "Environment"  = var.env_name
+    "Project"      = "platform_main"
+    "user:Project" = "platform_main"
+    "user:Env"     = var.env_name
+    "user:Stack"   = "cloudwatch"
+  }, var.tags)
 
-data "aws_caller_identity" "current" {}
-data "aws_region" "current" {}
+  instance_name    = coalesce(var.instance_tag_value, "${var.env_name}-compute")
+  system_log_group = "/${var.env_name}/platform_main/ec2/${local.instance_name}/system"
 
-# App / docker log group
-resource "aws_cloudwatch_log_group" "app" {
-  name              = var.docker_log_group_name
-  retention_in_days = var.retention_in_days
-  tags              = merge(var.common_tags, { Name = var.log_group_tag_name })
-}
-
-# Optional S3 bucket for NLB access logs
-resource "aws_s3_bucket" "nlb_logs" {
-  count         = var.access_logs_bucket != "" ? 1 : 0
-  bucket        = var.access_logs_bucket
-  force_destroy = true
-  tags          = merge(var.common_tags, { Name = var.nlb_logs_bucket_tag_name, Environment = var.environment })
-}
-
-resource "aws_s3_bucket_public_access_block" "block" {
-  count                   = var.access_logs_bucket != "" ? 1 : 0
-  bucket                  = aws_s3_bucket.nlb_logs[0].id
-  block_public_acls       = true
-  block_public_policy     = true
-  ignore_public_acls      = true
-  restrict_public_buckets = true
-}
-
-# NLB Access Logs bucket policy (ELB service principal)
-resource "aws_s3_bucket_policy" "nlb_logs_policy" {
-  count  = var.access_logs_bucket != "" ? 1 : 0
-  bucket = aws_s3_bucket.nlb_logs[0].id
-
-  policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [{
-      Sid    = "AllowELBLogging",
-      Effect = "Allow",
-      Principal = {
-        Service = "logdelivery.elasticloadbalancing.amazonaws.com"
-      },
-      Action   = "s3:PutObject",
-      Resource = "${aws_s3_bucket.nlb_logs[0].arn}/${var.access_logs_prefix}/AWSLogs/${data.aws_caller_identity.current.account_id}/*",
-      Condition = {
-        StringEquals = {
-          "aws:SourceAccount" = data.aws_caller_identity.current.account_id
-        },
-        ArnLike = {
-          "aws:SourceArn" = "arn:aws:elasticloadbalancing:${var.region}:${data.aws_caller_identity.current.account_id}:loadbalancer/net/*"
-        }
-      }
-    }]
-  })
-}
-
-# SSM parameter holding the CloudWatch Agent config
-resource "aws_ssm_parameter" "cw_agent_config" {
-  name      = var.ssm_param_name
-  type      = "String"
-  tier      = "Standard"
-  overwrite = true
-
-  value = jsonencode({
-    agent = {
-      metrics_collection_interval = var.metrics_collection_interval,
-      logfile                     = var.cloudwatch_agent_logfile
-    },
+  cwagent_config = {
     logs = {
       logs_collected = {
         files = {
           collect_list = [
-            {
-              file_path       = var.docker_log_file_path,
-              log_group_name  = var.docker_log_group_name,
-              log_stream_name = var.log_stream_name,
-              timezone        = var.timezone
+            for f in var.system_log_files : {
+              file_path       = f
+              log_group_name  = local.system_log_group
+              log_stream_name = "{instance_id}"
             }
           ]
         }
       }
     }
-  })
+    metrics = {
+      append_dimensions = {
+        AutoScalingGroupName = "$${aws:AutoScalingGroupName}"
+        InstanceId           = "$${aws:InstanceId}"
+      }
+      metrics_collected = {
+        cpu = {
+          resources                   = ["*"]
+          measurement                 = ["cpu_usage_idle", "cpu_usage_iowait", "cpu_usage_user", "cpu_usage_system"]
+          totalcpu                    = true
+          metrics_collection_interval = 60
+        }
+        mem = {
+          measurement                 = ["mem_used_percent"]
+          metrics_collection_interval = 60
+        }
+        disk = {
+          resources                   = ["*"]
+          measurement                 = ["used_percent"]
+          metrics_collection_interval = 60
+        }
+        netstat = { metrics_collection_interval = 60 }
+      }
+    }
+  }
+}
 
-  tags = merge(var.common_tags, { Name = var.ssm_tag_name })
+
+# Per-app log groups for container stdout/stderr
+resource "aws_cloudwatch_log_group" "app" {
+  for_each          = toset(var.apps)
+  name              = "${var.log_group_prefix}/${each.key}/app"
+  retention_in_days = var.retention_in_days
+  tags              = local.tags
+}
+
+# EC2 system log group (for syslog/auth.log via agent)
+resource "aws_cloudwatch_log_group" "system" {
+  name              = local.system_log_group
+  retention_in_days = var.retention_in_days
+  tags              = local.tags
+}
+
+# CloudWatch Agent config stored in SSM (your EC2 user-data fetches from here)
+resource "aws_ssm_parameter" "cwagent_config" {
+  name      = var.cwagent_ssm_param_path
+  type      = "String"
+  overwrite = true
+  value     = jsonencode(local.cwagent_config)
 }

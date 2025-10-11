@@ -3,19 +3,26 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = ">= 5.0"
+      version = ">= 6.11"
     }
   }
 }
 
+# Trim and drop empty strings so SSM PutParameter doesn't error
+locals {
+  values_trimmed  = { for k, v in var.values : k => trimspace(v) }
+  values_nonempty = { for k, v in local.values_trimmed : k => v if length(v) > 0 }
+}
 
-resource "aws_ssm_parameter" "this" {
-  for_each = var.values
+resource "aws_ssm_parameter" "kv" {
+  for_each       = local.values_nonempty
+  name           = "${var.path_prefix}/${each.key}"
+  type           = "String"
+  insecure_value = each.value # v6: exactly one of value/insecure_value/value_wo
+  overwrite      = var.overwrite
+  tags           = var.tags
 
-  name        = "${var.path_prefix}/${each.key}"
-  type        = "String"
-  value       = each.value
-  overwrite   = var.overwrite
-  description = "Published by Terraform"
-  tags        = var.common_tags
+  lifecycle {
+    ignore_changes = [insecure_value]
+  }
 }

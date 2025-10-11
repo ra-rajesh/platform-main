@@ -2,7 +2,7 @@ variable "env_name" {
   type = string
 }
 
-variable "name" {
+variable "nlb_name" {
   type    = string
   default = "nlb"
 }

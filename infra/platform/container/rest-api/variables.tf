@@ -1,6 +1,7 @@
 variable "env_name" {
   type = string
 }
+
 variable "region" {
   type = string
 }
@@ -17,10 +18,10 @@ variable "stage_name" {
 
 variable "description" {
   type    = string
-  default = "IDLMS shared REST API (Option B: path -> backend route)"
+  default = "shared REST API"
 }
 
-# path -> { port, optional health_path }
+# Path -> { port, optional health_path }
 variable "routes" {
   type = map(object({
     port        = number
@@ -62,10 +63,27 @@ variable "tags" {
   default = {}
 }
 
-# NEW — pass NLB directly (no SSM)
+# ---- NLB inputs ----
+# Provide these to BYPASS SSM entirely.
 variable "nlb_arn" {
-  type = string
+  type        = string
+  default     = "arn:aws:elasticloadbalancing:ap-south-1:592776312448:loadbalancer/net/stage-nlb/6c8323c2092f314e"
+  description = "NLB ARN (set to bypass SSM)"
 }
+
 variable "nlb_dns_name" {
-  type = string
+  type        = string
+  default     = "stage-nlb-6c8323c2092f314e.elb.ap-south-1.amazonaws.com"
+  description = "NLB DNS name (set to bypass SSM)"
 }
+variable "nlb_ssm_prefix" {
+  type        = string
+  default     = null
+  description = "SSM prefix used only when direct NLB values are not provided"
+}
+
+variable "create_stage_and_deployment" {
+  description = "Create aws_api_gateway_deployment and aws_api_gateway_stage here"
+  type        = bool
+}
+

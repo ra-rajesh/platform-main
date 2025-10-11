@@ -7,12 +7,13 @@ variable "region" {
 }
 
 variable "nlb_ssm_prefix" {
-  type = string
+  type    = string
+  default = null
 }
 
 variable "api_name" {
   type    = string
-  default = "idlms-api"
+  default = "platform-main-api"
 }
 
 variable "stage_name" {
@@ -22,22 +23,23 @@ variable "stage_name" {
 
 variable "description" {
   type    = string
-  default = "IDLMS shared REST API"
+  default = "Platform-Main shared REST API"
+}
+
+variable "tf_bucket" {
+  type        = string
+  default     = ""
+  description = "Override the platform-main state bucket. If empty, it's computed automatically."
 }
 
 variable "endpoint_type" {
-  type = string
+  type    = string
+  default = "REGIONAL"
 }
-
-# NEW: path -> port map
 
 variable "routes" {
-  type = map(object({
-    port        = number
-    health_path = optional(string, "/health")
-  }))
+  type = any
 }
-
 
 variable "access_log_retention_days" {
   type    = number
@@ -60,9 +62,25 @@ variable "execution_data_trace" {
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  type = map(string)
+  default = {
+    Project     = "Platform-main"
+    Environment = "stage"
+  }
 }
-variable "tf_state_bucket" { type = string }
-variable "tf_state_region" { type = string }
-variable "nlb_state_key" { type = string } # e.g., "stage/nlb/terraform.tfstate"
+variable "nlb_arn" {
+  type        = string
+  default     = ""
+  description = "NLB ARN (set to bypass SSM)"
+}
+
+variable "nlb_dns_name" {
+  type        = string
+  default     = ""
+  description = "NLB DNS name (set to bypass SSM)"
+}
+
+variable "ssm_prefix" {
+  type    = string
+  default = ""
+}

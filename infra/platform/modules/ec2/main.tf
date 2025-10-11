@@ -59,7 +59,7 @@ locals {
   )
 }
 
-resource "aws_instance" "idlms_ec2" {
+resource "aws_instance" "platform_main_ec2" {
   ami                         = var.ami_id
   instance_type               = var.instance_type
   subnet_id                   = var.subnet_id
@@ -67,7 +67,6 @@ resource "aws_instance" "idlms_ec2" {
   iam_instance_profile        = var.instance_profile_name
   key_name                    = var.key_name
   associate_public_ip_address = var.associate_public_ip_address
-
   user_data                   = local.user_data_final
   user_data_replace_on_change = true
 

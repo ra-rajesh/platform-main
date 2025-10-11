@@ -1,14 +1,16 @@
-output "repository_names" {
-  description = "Final created repo names (ordered)"
-  value       = local.repo_names
+output "repositories" {
+  value = local.repo_info
 }
 
+# Convenience flat maps (optional, but handy)
 output "repository_urls" {
-  description = "ECR repository URLs (ordered like repository_names)"
-  value       = local.repository_urls
+  value = { for k, v in local.repo_info : k => v.url }
 }
 
 output "repository_arns" {
-  description = "ECR repository ARNs (ordered like repository_names)"
-  value       = local.repository_arns
+  value = { for k, v in local.repo_info : k => v.arn }
+}
+
+output "repository_names" {
+  value = { for k, v in local.repo_info : k => v.name }
 }

@@ -1,5 +1,7 @@
 locals {
   use_subnet_mapping = length(var.subnet_mapping) > 0
+  final_lb_name      = substr(var.nlb_name, 0, 32)
+
 
   port_map = { for p in var.ports : tostring(p) => p }
 
@@ -25,7 +27,7 @@ locals {
 }
 
 resource "aws_lb" "this" {
-  name                             = substr("${var.env_name}-${var.name}", 0, 32)
+  name                             = local.final_lb_name
   internal                         = var.internal
   load_balancer_type               = "network"
   enable_cross_zone_load_balancing = var.cross_zone
@@ -45,13 +47,13 @@ resource "aws_lb" "this" {
 
   tags = merge(var.tags, {
     Environment = var.env_name
-    Name        = substr("${var.env_name}-${var.name}", 0, 32)
+    Name        = substr("${var.env_name}-${var.nlb_name}", 0, 32)
   })
 }
 
 resource "aws_lb_target_group" "multi" {
   for_each             = local.port_map
-  name                 = substr("${var.env_name}-${var.name}-${each.value}", 0, 32)
+  name                 = substr("${var.env_name}-${var.nlb_name}-${each.value}", 0, 32)
   port                 = each.value
   protocol             = "TCP"
   vpc_id               = var.vpc_id

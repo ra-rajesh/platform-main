@@ -26,6 +26,36 @@ variable "private_subnet_cidrs" {
   type = list(string)
 }
 
+variable "route_table_public_name" {
+  type    = string
+  default = ""
+}
+
+variable "route_table_private_name" {
+  type    = string
+  default = ""
+}
+
+variable "internet_gateway_name" {
+  type    = string
+  default = ""
+}
+
+variable "nat_gateway_name" {
+  type    = string
+  default = ""
+}
+
+variable "public_subnet_names" {
+  type    = list(string)
+  default = []
+}
+
+variable "private_subnet_names" {
+  type    = list(string)
+  default = []
+}
+
 variable "enable_dns_support" {
   type = bool
 }
