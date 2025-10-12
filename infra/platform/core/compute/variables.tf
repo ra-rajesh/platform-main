@@ -53,6 +53,7 @@ variable "app_ports" {
     error_message = "app_ports must contain valid TCP ports (1-65535) when provided."
   }
 }
+
 variable "ingress_cidrs" {
   type    = list(string)
   default = []
