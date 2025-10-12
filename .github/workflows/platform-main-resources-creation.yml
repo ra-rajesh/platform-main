@@ -10,7 +10,7 @@ on:
       BRANCH:
         description: "Git ref (branch/tag) to checkout"
         required: true
-        default: "feature/btl-1"
+        default: "feature-1"
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
