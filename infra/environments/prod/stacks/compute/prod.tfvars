@@ -24,9 +24,9 @@ docker_artifact_bucket = ""
 
 cloudwatch_ssm_config_path = "/prod/platform_main/cloudwatch/agent-config"
 
-ec2_ssm_role_name = "prod-ec2-ssm-role"
+ec2_ssm_role_name = "null"
 
-ec2_ssm_profile_name = "prod-ec2-ssm-instance-profile"
+ec2_ssm_profile_name = "null"
 
 tags = {
   Environment = "prod"
