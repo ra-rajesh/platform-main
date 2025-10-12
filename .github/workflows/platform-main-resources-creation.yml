@@ -6,11 +6,11 @@ on:
       ENV:
         description: "Environment (dev/stage/prod)"
         required: true
-        default: "stage"
+        default: "prod"
       BRANCH:
         description: "Git ref (branch/tag) to checkout"
         required: true
-        default: "feature/btl-3"
+        default: "feature/btl-1"
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
@@ -21,7 +21,7 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   TF_BUCKET: ${{ inputs.ENV }}-btl-platform-main-repo-backend-tfstate-${{ secrets.AWS_ACCOUNT_ID }}
-  TF_LOCK_TABLE: platform-main-state-lock
+  TF_LOCK_TABLE: prod-platform-main-state-lock
 
 jobs:
   deploy:

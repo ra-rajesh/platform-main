@@ -1,4 +1,4 @@
-env_name             = "stage"
+env_name             = "prod"
 region               = "ap-south-1"
 repositories         = {}
 image_tag_mutability = "MUTABLE"
@@ -10,5 +10,5 @@ ssm_prefix = "/platform-main"
 
 tags = {
   Project     = "platform-main"
-  Environment = "stage"
+  Environment = "prod"
 }

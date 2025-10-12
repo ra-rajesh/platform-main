@@ -1,14 +1,14 @@
-env_name = "stage"
+env_name = "prod"
 
 region = "ap-south-1"
 
 tf_state_region = "ap-south-1"
 
-network_state_key = "stage/platform-main/network/terraform.tfstate"
+network_state_key = "prod/platform-main/network/terraform.tfstate"
 
-ec2_name = "stage-compute"
+ec2_name = "prod-compute"
 
-sg_name = "stage-compute-security-group"
+sg_name = "prod-compute-security-group"
 
 instance_type = "t3.small"
 
@@ -22,13 +22,13 @@ ingress_cidrs = []
 
 docker_artifact_bucket = ""
 
-cloudwatch_ssm_config_path = "/stage/platform_main/cloudwatch/agent-config"
+cloudwatch_ssm_config_path = "/prod/platform_main/cloudwatch/agent-config"
 
-ec2_ssm_role_name = "stage-ec2-ssm-role"
+ec2_ssm_role_name = "prod-ec2-ssm-role"
 
-ec2_ssm_profile_name = "stage-ec2-ssm-instance-profile"
+ec2_ssm_profile_name = "prod-ec2-ssm-instance-profile"
 
 tags = {
-  Environment = "stage"
+  Environment = "prod"
   Project     = "platform_main"
 }

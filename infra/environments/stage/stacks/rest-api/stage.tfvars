@@ -1,7 +1,7 @@
-region     = "ap-south-1"
-env_name   = "stage"
-api_name   = "apigateway"
-stage_name = "stage"
+region    = "ap-south-1"
+env_name  = "prod"
+api_name  = "apigateway"
+prod_name = "prod"
 
 routes = {}
 
@@ -16,7 +16,7 @@ execution_metrics_enabled = true
 execution_data_trace      = false
 
 tags = {
-  Environment = "stage"
+  Environment = "prod"
   Project     = "platform-main"
   Stack       = "rest-api"
 }
