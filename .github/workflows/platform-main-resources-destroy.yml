@@ -6,7 +6,7 @@ on:
       ENV:
         description: "Environment (dev/stage/prod)"
         required: true
-        default: "stage"           # keep stage as the safer default for destroy
+        default: "prod"           # keep stage as the safer default for destroy
       BRANCH:
         description: "Git ref (branch/tag) to checkout"
         required: true
