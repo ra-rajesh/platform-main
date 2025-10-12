@@ -184,7 +184,9 @@
                 "iam:ListInstanceProfilesForRole",
                 "iam:ListAttachedRolePolicies",
                 "iam:TagRole",
-                "iam:UntagRole"
+                "iam:UntagRole",
+                "iam:TagInstanceProfile",
+                "iam:UntagInstanceProfile"
             ],
             "Resource": "*"
         },
