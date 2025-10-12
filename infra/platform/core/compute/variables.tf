@@ -45,16 +45,17 @@ variable "sg_name" {
 }
 
 variable "app_ports" {
-  type = list(number)
+  type    = list(number)
+  default = []
+  # Allow empty. If provided, validate the range.
   validation {
-    condition     = length(var.app_ports) > 0 && alltrue([for p in var.app_ports : p >= 1 && p <= 65535])
-    error_message = "app_ports must be a non-empty list of valid TCP ports (1-65535)."
+    condition     = alltrue([for p in var.app_ports : p >= 1 && p <= 65535])
+    error_message = "app_ports must contain valid TCP ports (1-65535) when provided."
   }
 }
-
 variable "ingress_cidrs" {
   type    = list(string)
-  default = ["0.0.0.0/0"]
+  default = []
 }
 
 variable "tags" {
