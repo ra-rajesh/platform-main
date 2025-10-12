@@ -7,6 +7,7 @@ terraform {
     }
   }
 }
+
 data "aws_iam_policy_document" "assume_role" {
   statement {
     effect  = "Allow"
@@ -20,15 +21,32 @@ data "aws_iam_policy_document" "assume_role" {
 
 # ---------- Locals (single source of truth) ----------
 locals {
-  role_name        = coalesce(var.existing_role_name, try(aws_iam_role.this[0].name, null), var.name)
-  instance_profile = coalesce(var.existing_instance_profile_name, try(aws_iam_instance_profile.this[0].name, null), "${var.name}-instance-profile")
-  s3_bucket_arn    = try(regex("^arn:aws:s3:::[^/]+", var.s3_backup_arn), null)
+  # If var.name is not provided, build "<env_name>-ec2-ssm"
+  base_name = coalesce(var.name, "${var.env_name}-ec2-ssm")
+
+  # Canonical create targets
+  desired_role_name    = "${local.base_name}-role"
+  desired_profile_name = "${local.base_name}-instance-profile"
+
+  # FIX: Fall back to desired_* names, not plain var.name
+  role_name_effective = coalesce(
+    var.existing_role_name,
+    try(aws_iam_role.this[0].name, null),
+    local.desired_role_name
+  )
+  profile_name_effective = coalesce(
+    var.existing_instance_profile_name,
+    try(aws_iam_instance_profile.this[0].name, null),
+    local.desired_profile_name
+  )
+
+  s3_bucket_arn = try(regex("^arn:aws:s3:::[^/]+", var.s3_backup_arn), null)
 }
 
 # ---------- Role (create or reuse) ----------
 resource "aws_iam_role" "this" {
   count              = var.existing_role_name == null ? 1 : 0
-  name               = "${var.name}-role"
+  name               = local.desired_role_name
   assume_role_policy = data.aws_iam_policy_document.assume_role.json
   tags               = var.tags
 }
@@ -41,8 +59,8 @@ data "aws_iam_role" "existing" {
 # ---------- Instance Profile (create or reuse) ----------
 resource "aws_iam_instance_profile" "this" {
   count = var.existing_instance_profile_name == null ? 1 : 0
-  name  = "${var.name}-instance-profile"
-  role  = local.role_name
+  name  = local.desired_profile_name
+  role  = local.role_name_effective
   tags  = var.tags
 }
 
@@ -53,45 +71,53 @@ data "aws_iam_instance_profile" "existing" {
 
 # ---------- REQUIRED managed policy attachments ----------
 resource "aws_iam_role_policy_attachment" "ssm_core" {
-  role       = local.role_name
+  role       = local.role_name_effective
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 resource "aws_iam_role_policy_attachment" "cloudwatch_agent" {
-  role       = local.role_name
+  role       = local.role_name_effective
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
 # ---------- SSM Parameter read (AWS-managed) ----------
-# (Previously a custom policy - replaced to avoid iam:CreatePolicy)
 resource "aws_iam_role_policy_attachment" "ssm_readonly" {
-  role       = local.role_name
+  role       = local.role_name_effective
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess"
 }
 
 # ---------- ECR pull (AWS-managed) ----------
 resource "aws_iam_role_policy_attachment" "ecr_readonly" {
   count      = var.enable_ecr_pull ? 1 : 0
-  role       = local.role_name
+  role       = local.role_name_effective
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
 # ---------- Describe helpers (AWS-managed) ----------
 resource "aws_iam_role_policy_attachment" "ec2_readonly" {
   count      = var.enable_describe_helpers ? 1 : 0
-  role       = local.role_name
+  role       = local.role_name_effective
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
 }
 
 resource "aws_iam_role_policy_attachment" "elb_readonly" {
   count      = var.enable_describe_helpers ? 1 : 0
-  role       = local.role_name
+  role       = local.role_name_effective
   policy_arn = "arn:aws:iam::aws:policy/ElasticLoadBalancingReadOnly"
 }
 
 # ---------- S3 docker-backup read ----------
 resource "aws_iam_role_policy_attachment" "s3_readonly" {
   count      = var.s3_backup_arn == "" ? 0 : 1
-  role       = local.role_name
+  role       = local.role_name_effective
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
+}
+
+# ---------- Outputs ----------
+output "iam_role_name" {
+  value = local.role_name_effective
+}
+
+output "instance_profile_name" {
+  value = local.profile_name_effective
 }

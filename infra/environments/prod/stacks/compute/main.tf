@@ -13,7 +13,7 @@ locals {
   remote_state_region = coalesce(var.tf_state_region, var.remote_state_region, var.region)
 }
 
-# Read NETWORK stack state from S3 (wrapper handles this)
+# Read NETWORK stack state from S3
 data "terraform_remote_state" "network" {
   backend = "s3"
   config = {
@@ -26,34 +26,38 @@ data "terraform_remote_state" "network" {
 module "compute" {
   source = "../../../../platform/core/compute"
 
+  # basic
   env_name = var.env_name
   region   = var.region
 
-  network_state_key = var.network_state_key
-  tf_state_region   = local.remote_state_region
-
+  # network inputs from remote state
   vpc_id             = data.terraform_remote_state.network.outputs.vpc_id
   private_subnet_ids = data.terraform_remote_state.network.outputs.private_subnet_ids
-  sg-name            = var.sg_name
 
-  ec2_name         = var.ec2_name
-  instance_type    = var.instance_type
-  key_name         = var.key_name
-  app_ports        = var.app_ports
-  ingress_cidrs    = var.ingress_cidrs
-  allow_no_ingress = true
+  # security group + app ingress
+  sg_name       = var.sg_name # FIX: was sg-name
+  app_ports     = var.app_ports
+  ingress_cidrs = var.ingress_cidrs
 
+  # ec2
+  ec2_name      = var.ec2_name
+  instance_type = var.instance_type
+  key_name      = var.key_name
+
+  # AMI + agents
   ami_id                     = var.ami_id
   ami_ssm_parameter_name     = var.ami_ssm_parameter_name
   cloudwatch_ssm_config_path = var.cloudwatch_ssm_config_path
 
-  docker_artifact_bucket = var.docker_artifact_bucket
+  # user-data (optional)
+  user_data = var.user_data
 
-  existing_iam_role_name         = var.ec2_ssm_role_name
-  existing_instance_profile_name = var.ec2_ssm_profile_name
+  # IAM reuse knobs (leave null to auto-create env-prefixed names)
+  ec2_ssm_role_name    = var.ec2_ssm_role_name    # FIX: key names
+  ec2_ssm_profile_name = var.ec2_ssm_profile_name # FIX: key names
 
-  s3_backup_arn      = var.s3_backup_arn
-  ssm_parameter_arns = var.ssm_parameter_arns
+  # Optional S3 backup permission for EC2 agent
+  s3_backup_arn = var.s3_backup_arn
 
   tags = var.tags
 }

@@ -128,3 +128,9 @@ variable "ssm_parameter_arns" {
   default     = ["*"]
   description = "Restrict SSM Parameter access (e.g., only /idlms/*). If using AWS-managed SSMReadOnly, this may be ignored."
 }
+
+variable "user_data" {
+  type        = string
+  default     = ""
+  description = "Optional EC2 user-data script (shell). Leave empty to skip."
+}
