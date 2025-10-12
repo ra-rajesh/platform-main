@@ -1,13 +1,8 @@
-output "role_name" {
-  value = coalesce(
-    var.existing_role_name,
-    try(aws_iam_role.this[0].name, null)
-  )
+# ---------- Outputs ----------
+output "iam_role_name" {
+  value = local.role_name_effective
 }
 
 output "instance_profile_name" {
-  value = coalesce(
-    var.existing_instance_profile_name,
-    try(aws_iam_instance_profile.this[0].name, null)
-  )
+  value = local.profile_name_effective
 }
