@@ -44,6 +44,9 @@ jobs:
           echo "TF_VAR_tf_state_bucket=${{ inputs.ENV }}-btl-platform-main-repo-backend-tfstate-${{ secrets.AWS_ACCOUNT_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_tf_state_region=${{ vars.AWS_REGION }}" >> $GITHUB_ENV
           echo "TF_VAR_network_state_key=${{ inputs.ENV }}/platform-main/network/terraform.tfstate" >> $GITHUB_ENV
+          echo "TF_VAR_compute_state_key=${{ inputs.ENV }}/platform-main/compute/terraform.tfstate" >> $GITHUB_ENV
+          echo "TF_VAR_nlb_state_key=${{ inputs.ENV }}/platform-main/nlb/terraform.tfstate" >> $GITHUB_ENV
+          echo "TF_VAR_rest_api_state_key=${{ inputs.ENV }}/platform-main/rest-api/terraform.tfstate" >> $GITHUB_ENV
 
       # ---------- NETWORK ----------
       - name: Terraform Apply Network
