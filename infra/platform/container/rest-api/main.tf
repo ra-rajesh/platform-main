@@ -1,22 +1,29 @@
 # --- NLB values: prefer direct, fallback to SSM (only if prefix is provided) ---
 data "aws_ssm_parameter" "lb_arn" {
   count = var.nlb_arn == null && var.nlb_ssm_prefix != null ? 1 : 0
-  name  = "${var.nlb_ssm_prefix}/stage/lb_arn"
+  name  = "${var.nlb_ssm_prefix}/${var.stage_name}/lb_arn"
 }
 
 data "aws_ssm_parameter" "lb_dns_name" {
   count = var.nlb_dns_name == null && var.nlb_ssm_prefix != null ? 1 : 0
-  name  = "${var.nlb_ssm_prefix}/stage/lb_dns_name"
+  name  = "${var.nlb_ssm_prefix}/${var.stage_name}/lb_dns_name"
 }
 
 locals {
   # Prefer direct values, else fallback to SSM if enabled and present
-  lb_arn = var.nlb_arn != null ? var.nlb_arn : (var.nlb_ssm_prefix != null && length(data.aws_ssm_parameter.lb_arn) > 0 ? data.aws_ssm_parameter.lb_arn[0].value : null)
+  lb_arn = var.nlb_arn != null ? var.nlb_arn : (
+    var.nlb_ssm_prefix != null && length(data.aws_ssm_parameter.lb_arn) > 0
+    ? data.aws_ssm_parameter.lb_arn[0].value
+    : null
+  )
 
-  lb_dns_name = var.nlb_dns_name != null ? var.nlb_dns_name : (var.nlb_ssm_prefix != null && length(data.aws_ssm_parameter.lb_dns_name) > 0
-  ? data.aws_ssm_parameter.lb_dns_name[0].value : null)
+  lb_dns_name = var.nlb_dns_name != null ? var.nlb_dns_name : (
+    var.nlb_ssm_prefix != null && length(data.aws_ssm_parameter.lb_dns_name) > 0
+    ? data.aws_ssm_parameter.lb_dns_name[0].value
+    : null
+  )
 
-  # Normalize health_path default
+  # Normalize health_path default on each route
   routes = {
     for k, v in var.routes :
     k => {
@@ -28,6 +35,12 @@ locals {
   first_route_key = try(keys(local.routes)[0], null)
   first_route     = try(local.routes[local.first_route_key], null)
   first_route_url = (local.first_route_key != null && local.lb_dns_name != null) ? "http://${local.lb_dns_name}:${local.first_route.port}" : null
+
+  # We need a Stage/Deployment even when there are no user routes.
+  do_seed = var.create_stage_and_deployment && length(local.routes) == 0
+
+  # Seed path segment (no leading slash). Hard-code "health"
+  seed_path_part = "health"
 }
 
 # Hard validation: ensure we ended up with values from either direct vars or SSM.
@@ -40,7 +53,7 @@ resource "null_resource" "validate_nlb_inputs" {
   lifecycle {
     precondition {
       condition     = local.lb_arn != null && local.lb_dns_name != null
-      error_message = "NLB details missing. Provide nlb_arn and nlb_dns_name via tfvars, or set nlb_ssm_prefix to a valid SSM path that contains /stage/lb_arn and /stage/lb_dns_name."
+      error_message = "NLB details missing. Provide nlb_arn and nlb_dns_name via tfvars, or set nlb_ssm_prefix to a valid SSM path that contains /${var.stage_name}/lb_arn and /${var.stage_name}/lb_dns_name."
     }
   }
 }
@@ -83,14 +96,62 @@ resource "aws_api_gateway_rest_api" "this" {
   tags = var.tags
 }
 
-# (Optional) Precreate the execution log group so you can see it immediately in CW Logs  # <<<
+# (Optional) Precreate the execution log group so you can see it immediately in CW Logs
 resource "aws_cloudwatch_log_group" "execution_logs" {
   name              = "API-Gateway-Execution-Logs_${aws_api_gateway_rest_api.this.id}/${var.stage_name}"
   retention_in_days = var.access_log_retention_days
   tags              = var.tags
 }
 
-# --- ROOT (GET /) -> first route's /health ---
+# --- Seed (only when there are no routes): GET /health -> MOCK 200
+resource "aws_api_gateway_resource" "seed" {
+  count       = local.do_seed ? 1 : 0
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  parent_id   = aws_api_gateway_rest_api.this.root_resource_id
+  path_part   = local.seed_path_part
+}
+
+resource "aws_api_gateway_method" "seed_get" {
+  count         = local.do_seed ? 1 : 0
+  rest_api_id   = aws_api_gateway_rest_api.this.id
+  resource_id   = aws_api_gateway_resource.seed[0].id
+  http_method   = "GET"
+  authorization = "NONE"
+}
+
+resource "aws_api_gateway_integration" "seed_get" {
+  count                   = local.do_seed ? 1 : 0
+  rest_api_id             = aws_api_gateway_rest_api.this.id
+  resource_id             = aws_api_gateway_resource.seed[0].id
+  http_method             = aws_api_gateway_method.seed_get[0].http_method
+  type                    = "MOCK"
+  request_templates       = { "application/json" = "{\"statusCode\":200}" }
+  integration_http_method = "GET"
+}
+
+resource "aws_api_gateway_method_response" "seed_200" {
+  count       = local.do_seed ? 1 : 0
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.seed[0].id
+  http_method = aws_api_gateway_method.seed_get[0].http_method
+  status_code = "200"
+  response_models = {
+    "application/json" = "Empty"
+  }
+}
+
+resource "aws_api_gateway_integration_response" "seed_200" {
+  count       = local.do_seed ? 1 : 0
+  rest_api_id = aws_api_gateway_rest_api.this.id
+  resource_id = aws_api_gateway_resource.seed[0].id
+  http_method = aws_api_gateway_method.seed_get[0].http_method
+  status_code = aws_api_gateway_method_response.seed_200[0].status_code
+  response_templates = {
+    "application/json" = "{\"ok\":true}"
+  }
+}
+
+# --- ROOT (GET /) -> first route's /health (only when routes exist)
 resource "aws_api_gateway_method" "root_get" {
   count         = local.first_route_key == null ? 0 : 1
   rest_api_id   = aws_api_gateway_rest_api.this.id
@@ -168,17 +229,37 @@ resource "aws_api_gateway_integration" "route_any" {
   request_parameters      = { "integration.request.path.proxy" = "method.request.path.proxy" }
 }
 
-# Only create deployment if routes exist
+# Create deployment whenever we are asked to (routes or seed both supported)
 resource "aws_api_gateway_deployment" "this" {
   count       = var.create_stage_and_deployment ? 1 : 0
   rest_api_id = aws_api_gateway_rest_api.this.id
 
-  # keep your existing triggers; example:
+  # Ensure deployment waits for whichever methods exist
+  depends_on = [
+    # Seed flow (when routes = {})
+    aws_api_gateway_method.seed_get,
+    aws_api_gateway_integration.seed_get,
+    aws_api_gateway_method_response.seed_200,
+    aws_api_gateway_integration_response.seed_200,
+
+    # Root flow (when routes exist)
+    aws_api_gateway_method.root_get,
+    aws_api_gateway_integration.root_get,
+
+    # Route flows (when routes exist)
+    aws_api_gateway_method.route_base_any,
+    aws_api_gateway_integration.route_base_any,
+    aws_api_gateway_method.route_any,
+    aws_api_gateway_integration.route_any
+  ]
+
   triggers = {
     redeploy_hash = sha1(jsonencode({
-      # include whatever you use to trigger redeploys
-      lb_arn = try(local.lb_arn, null)
-      routes = try(local.routes, {})
+      lb_arn    = try(local.lb_arn, null)
+      lb_dns    = try(local.lb_dns_name, null)
+      routes    = try(local.routes, {})
+      do_seed   = local.do_seed
+      seed_path = local.seed_path_part
     }))
   }
 
@@ -202,18 +283,16 @@ resource "aws_api_gateway_stage" "this" {
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.access_logs.arn
-
-    format = <<EOF
+    format          = <<EOF
 {"timestamp":"$context.requestTime","apiId":"$context.apiId","domainName":"$context.domainName","httpMethod":"$context.httpMethod","path":"$context.resourcePath","protocol":"$context.protocol","requestId":"$context.requestId","responseLatency":$context.responseLatency,"responseLength":$context.responseLength,"sourceIp":"$context.identity.sourceIp","stage":"$context.stage","status":$context.status,"userAgent":"$context.identity.userAgent","integrationStatus":"$context.integration.status","integrationLatency":$context.integration.latency,"integrationError":"$context.integration.error"}
 EOF
   }
 
   tags = var.tags
 
-  # Ensure CloudWatch role is in place before stage is evaluated                 # <<<
   depends_on = [
     aws_cloudwatch_log_group.access_logs,
-    aws_cloudwatch_log_group.execution_logs, # precreated exec group (optional)
+    aws_cloudwatch_log_group.execution_logs,
     aws_iam_role_policy_attachment.apigw_logs_attach
   ]
 }
@@ -238,7 +317,6 @@ resource "aws_api_gateway_method_settings" "all" {
     data_trace_enabled = false
   }
 
-  # Make execution logging wait until account-level CW role is wired             # <<<
   depends_on = [
     aws_api_gateway_stage.this,
     aws_api_gateway_account.this

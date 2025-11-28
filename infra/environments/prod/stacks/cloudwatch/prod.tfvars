@@ -1,5 +1,5 @@
-env_name = "prod"
-region   = "ap-south-1"
+env_name    = "prod"
+region      = "ap-south-1"
 
 cwagent_ssm_param_path = "/prod/platform_main/cloudwatch/agent-config"
 

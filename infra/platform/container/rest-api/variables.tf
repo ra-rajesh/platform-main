@@ -12,7 +12,8 @@ variable "api_name" {
 }
 
 variable "stage_name" {
-  type = string
+  type    = string
+  default = "stage"
 }
 
 variable "description" {
@@ -86,3 +87,8 @@ variable "create_stage_and_deployment" {
   type        = bool
 }
 
+variable "seed_path" {
+  description = "Mock seed route (no leading slash)."
+  type        = string
+  default     = "_seed"
+}

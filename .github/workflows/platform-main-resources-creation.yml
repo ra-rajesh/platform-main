@@ -6,11 +6,11 @@ on:
       ENV:
         description: "Environment (dev/stage/prod)"
         required: true
-        default: "prod"
+        default: "dev"
       BRANCH:
         description: "Git ref (branch/tag) to checkout"
         required: true
-        default: "feature-1"
+        default: "main"
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
@@ -21,7 +21,7 @@ env:
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
   TF_BUCKET: ${{ inputs.ENV }}-btl-platform-main-repo-backend-tfstate-${{ secrets.AWS_ACCOUNT_ID }}
-  TF_LOCK_TABLE: prod-platform-main-state-lock
+  TF_LOCK_TABLE: ${{ inputs.ENV }}-platform-main-state-lock
 
 jobs:
   deploy:
@@ -45,8 +45,6 @@ jobs:
           echo "TF_VAR_tf_state_region=${{ vars.AWS_REGION }}" >> $GITHUB_ENV
           echo "TF_VAR_network_state_key=${{ inputs.ENV }}/platform-main/network/terraform.tfstate" >> $GITHUB_ENV
           echo "TF_VAR_compute_state_key=${{ inputs.ENV }}/platform-main/compute/terraform.tfstate" >> $GITHUB_ENV
-          echo "TF_VAR_nlb_state_key=${{ inputs.ENV }}/platform-main/nlb/terraform.tfstate" >> $GITHUB_ENV
-          echo "TF_VAR_rest_api_state_key=${{ inputs.ENV }}/platform-main/rest-api/terraform.tfstate" >> $GITHUB_ENV
 
       # ---------- NETWORK ----------
       - name: Terraform Apply Network

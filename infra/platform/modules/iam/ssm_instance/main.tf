@@ -1,121 +1,76 @@
 terraform {
   required_version = ">= 1.5.0"
   required_providers {
-    aws = { source = "hashicorp/aws", version = ">= 5.0" }
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
   }
 }
-
 data "aws_iam_policy_document" "assume_role" {
   statement {
-    effect  = "Allow"
-    actions = ["sts:AssumeRole"]
-
+    effect = "Allow"
     principals {
       type        = "Service"
       identifiers = ["ec2.amazonaws.com"]
     }
+    actions = ["sts:AssumeRole"]
   }
-}
-
-# ---------- Locals (single source of truth) ----------
-locals {
-  # Base name: prefer explicit var.name, else "<env_name>-ec2-ssm"
-  base_name            = coalesce(var.name, "${var.env_name}-ec2-ssm")
-  desired_role_name    = "${local.base_name}-role"
-  desired_profile_name = "${local.base_name}-instance-profile"
-
-  # Sanitize "existing" inputs: treat null / "" / "null" (any case) as null
-  existing_role_name_sane = (
-    var.existing_role_name == null
-    || trimspace(var.existing_role_name) == ""
-    || lower(trimspace(var.existing_role_name)) == "null"
-  ) ? null : var.existing_role_name
-
-  existing_profile_name_sane = (
-    var.existing_instance_profile_name == null
-    || trimspace(var.existing_instance_profile_name) == ""
-    || lower(trimspace(var.existing_instance_profile_name)) == "null"
-  ) ? null : var.existing_instance_profile_name
-
-  # Effective names used everywhere else
-  role_name_effective = coalesce(
-    local.existing_role_name_sane,
-    try(aws_iam_role.this[0].name, null),
-    local.desired_role_name
-  )
-
-  profile_name_effective = coalesce(
-    local.existing_profile_name_sane,
-    try(aws_iam_instance_profile.this[0].name, null),
-    local.desired_profile_name
-  )
-
-  s3_bucket_arn = try(regex("^arn:aws:s3:::[^/]+", var.s3_backup_arn), null)
 }
 
 # ---------- Role (create or reuse) ----------
 resource "aws_iam_role" "this" {
-  count              = local.existing_role_name_sane == null ? 1 : 0
-  name               = local.desired_role_name
-  assume_role_policy = data.aws_iam_policy_document.assume_role.json
-  tags               = var.tags
-}
-
-data "aws_iam_role" "existing" {
-  count = local.existing_role_name_sane == null ? 0 : 1
-  name  = local.existing_role_name_sane
+  name                  = var.role_name
+  assume_role_policy    = data.aws_iam_policy_document.assume_role.json
+  force_detach_policies = true
+  tags                  = var.tags
+  lifecycle {
+    prevent_destroy = false
+  }
 }
 
 # ---------- Instance Profile (create or reuse) ----------
 resource "aws_iam_instance_profile" "this" {
-  count = local.existing_profile_name_sane == null ? 1 : 0
-  name  = local.desired_profile_name
-  role  = local.role_name_effective
-  tags  = var.tags
-}
-
-data "aws_iam_instance_profile" "existing" {
-  count = local.existing_profile_name_sane == null ? 0 : 1
-  name  = local.existing_profile_name_sane
+  name = var.instance_profile_name
+  role = aws_iam_role.this.name
 }
 
 # ---------- REQUIRED managed policy attachments ----------
 resource "aws_iam_role_policy_attachment" "ssm_core" {
-  role       = local.role_name_effective
+  role       = aws_iam_role.this.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
 
 resource "aws_iam_role_policy_attachment" "cloudwatch_agent" {
-  role       = local.role_name_effective
+  role       = aws_iam_role.this.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
+# ---------- SSM Parameter read (AWS-managed) ----------
 resource "aws_iam_role_policy_attachment" "ssm_readonly" {
-  role       = local.role_name_effective
+  role       = aws_iam_role.this.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMReadOnlyAccess"
 }
 
-# ---------- Optional helpers ----------
+# ---------- ECR pull (AWS-managed) ----------
 resource "aws_iam_role_policy_attachment" "ecr_readonly" {
-  count      = var.enable_ecr_pull ? 1 : 0
-  role       = local.role_name_effective
+  role       = aws_iam_role.this.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
+# ---------- Describe helpers (AWS-managed) ----------
 resource "aws_iam_role_policy_attachment" "ec2_readonly" {
-  count      = var.enable_describe_helpers ? 1 : 0
-  role       = local.role_name_effective
+  role       = aws_iam_role.this.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
 }
 
 resource "aws_iam_role_policy_attachment" "elb_readonly" {
-  count      = var.enable_describe_helpers ? 1 : 0
-  role       = local.role_name_effective
+  role       = aws_iam_role.this.name
   policy_arn = "arn:aws:iam::aws:policy/ElasticLoadBalancingReadOnly"
 }
 
+# ---------- S3 docker-backup read ----------
 resource "aws_iam_role_policy_attachment" "s3_readonly" {
-  count      = var.s3_backup_arn == "" ? 0 : 1
-  role       = local.role_name_effective
+  role       = aws_iam_role.this.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess"
 }

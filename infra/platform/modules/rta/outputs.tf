@@ -18,7 +18,6 @@ output "private_association_by_subnet" {
   value       = { for i, a in aws_route_table_association.platform_main_private_rta : var.private_subnet_ids[i] => a.id }
 }
 
-# Optional: pass-through for convenience
 output "route_table_id" {
   description = "The route table ID used for these associations"
   value       = var.route_table_id

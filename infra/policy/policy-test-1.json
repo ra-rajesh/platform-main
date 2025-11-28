@@ -1,0 +1,204 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "SsmParamsReadWrite",
+            "Effect": "Allow",
+            "Action": [
+                "ssm:GetParameter",
+                "ssm:GetParameters",
+                "ssm:GetParametersByPath",
+                "ssm:PutParameter",
+                "ssm:DeleteParameter",
+                "ssm:DeleteParameters",
+                "ssm:AddTagsToResource",
+                "ssm:RemoveTagsFromResource",
+                "ssm:ListTagsForResource"
+            ],
+            "Resource": "arn:aws:ssm:eu-north-1:592776312448:parameter/*"
+        },
+        {
+            "Sid": "SsmDescribeParameters",
+            "Effect": "Allow",
+            "Action": "ssm:DescribeParameters",
+            "Resource": "*"
+        },
+        {
+            "Sid": "SsmPublicParamsRead",
+            "Effect": "Allow",
+            "Action": [
+                "ssm:GetParameter",
+                "ssm:GetParameters"
+            ],
+            "Resource": [
+                "arn:aws:ssm:*::parameter/aws/service/*",
+                "arn:aws:ssm:eu-north-1::parameter/aws/service/*"
+            ]
+        },
+        {
+            "Sid": "KmsDecryptForSsmParameters",
+            "Effect": "Allow",
+            "Action": [
+                "kms:Decrypt",
+                "kms:DescribeKey"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "kms:ViaService": "ssm.eu-north-1.amazonaws.com"
+                }
+            }
+        },
+        {
+            "Sid": "DdbCreatePlatformMainLockTable",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:CreateTable",
+                "dynamodb:TagResource",
+                "dynamodb:ListTables"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "TerraformDynamoDBLocksNew",
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DescribeTable",
+                "dynamodb:Scan",
+                "dynamodb:UpdateContinuousBackups"
+            ],
+            "Resource": "arn:aws:dynamodb:eu-north-1:592776312448:table/*"
+        },
+        {
+            "Sid": "TfStateBucketAccessNewPlatformMain",
+            "Effect": "Allow",
+            "Action": [
+                "s3:ListBucket",
+                "s3:GetBucketLocation",
+                "s3:ListBucketMultipartUploads"
+            ],
+            "Resource": "arn:aws:s3:::{{env.name}}-btl-platform-main-repo-backend-tfstate-592776312448"
+        },
+        {
+            "Sid": "TfStateObjectsRWNewPlatformMain",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:GetObjectVersion",
+                "s3:AbortMultipartUpload",
+                "s3:ListMultipartUploadParts"
+            ],
+            "Resource": "arn:aws:s3:::{{env.name}}-btl-platform-main-repo-backend-tfstate-592776312448/*"
+        },
+        {
+            "Sid": "EcrAuth",
+            "Effect": "Allow",
+            "Action": "ecr:GetAuthorizationToken",
+            "Resource": "*"
+        },
+        {
+            "Sid": "EcrRepoOps",
+            "Effect": "Allow",
+            "Action": [
+                "ecr:DescribeRepositories",
+                "ecr:CreateRepository",
+                "ecr:DeleteRepository",
+                "ecr:BatchGetImage",
+                "ecr:PutImage",
+                "ecr:DescribeImages",
+                "ecr:ListImages",
+                "ecr:BatchDeleteImage",
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload",
+                "ecr:InitiateLayerUpload",
+                "ecr:DeleteRepositoryPolicy",
+                "ecr:SetRepositoryPolicy",
+                "ecr:GetRepositoryPolicy",
+                "ecr:TagResource",
+                "ecr:UntagResource",
+                "ecr:ListTagsForResource"
+            ],
+            "Resource": "arn:aws:ecr:eu-north-1:592776312448:repository/*"
+        },
+        {
+            "Sid": "Ec2Vpc",
+            "Effect": "Allow",
+            "Action": "ec2:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "Elbv2",
+            "Effect": "Allow",
+            "Action": "elasticloadbalancing:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "ApiGw",
+            "Effect": "Allow",
+            "Action": "apigateway:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "Logs",
+            "Effect": "Allow",
+            "Action": "logs:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "CloudWatch",
+            "Effect": "Allow",
+            "Action": "cloudwatch:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "S3Infra",
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": "*"
+        },
+        {
+            "Sid": "IamRoleAndInstanceProfilesManage",
+            "Effect": "Allow",
+            "Action": [
+                "iam:CreateRole",
+                "iam:DeleteRole",
+                "iam:GetRole",
+                "iam:PassRole",
+                "iam:AttachRolePolicy",
+                "iam:DetachRolePolicy",
+                "iam:PutRolePolicy",
+                "iam:DeleteRolePolicy",
+                "iam:CreateInstanceProfile",
+                "iam:DeleteInstanceProfile",
+                "iam:AddRoleToInstanceProfile",
+                "iam:RemoveRoleFromInstanceProfile",
+                "iam:GetInstanceProfile",
+                "iam:ListInstanceProfiles",
+                "iam:ListInstanceProfilesForRole",
+                "iam:ListAttachedRolePolicies",
+                "iam:TagRole",
+                "iam:UntagRole",
+                "iam:TagInstanceProfile",
+                "iam:UntagInstanceProfile"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "IamReadRolePolicies",
+            "Effect": "Allow",
+            "Action": [
+                "iam:ListAttachedRolePolicies",
+                "iam:ListRolePolicies",
+                "iam:GetRolePolicy"
+            ],
+            "Resource": "arn:aws:iam::592776312448:role/*"
+        }
+    ]
+}

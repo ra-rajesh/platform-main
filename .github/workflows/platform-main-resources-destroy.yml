@@ -6,11 +6,11 @@ on:
       ENV:
         description: "Environment (dev/stage/prod)"
         required: true
-        default: "prod"           # keep stage as the safer default for destroy
+        default: "dev"
       BRANCH:
         description: "Git ref (branch/tag) to checkout"
         required: true
-        default: "feature-1"
+        default: "main"
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
@@ -20,9 +20,7 @@ env:
   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-  # Backend for the environment selected
   TF_BUCKET: ${{ inputs.ENV }}-btl-platform-main-repo-backend-tfstate-${{ secrets.AWS_ACCOUNT_ID }}
-  # IMPORTANT: env-scoped lock table (pre-create per env)
   TF_LOCK_TABLE: ${{ inputs.ENV }}-platform-main-state-lock
 
 jobs:
@@ -47,98 +45,95 @@ jobs:
           echo "TF_VAR_tf_state_region=${{ vars.AWS_REGION }}" >> $GITHUB_ENV
           echo "TF_VAR_network_state_key=${{ inputs.ENV }}/platform-main/network/terraform.tfstate" >> $GITHUB_ENV
           echo "TF_VAR_compute_state_key=${{ inputs.ENV }}/platform-main/compute/terraform.tfstate" >> $GITHUB_ENV
-          echo "TF_VAR_nlb_state_key=${{ inputs.ENV }}/platform-main/nlb/terraform.tfstate" >> $GITHUB_ENV
-          echo "TF_VAR_rest_api_state_key=${{ inputs.ENV }}/platform-main/rest-api/terraform.tfstate" >> $GITHUB_ENV
 
       # ---------- CLOUDWATCH ----------
       - name: Terraform Destroy CloudWatch
         run: |
           set -euo pipefail
-          cd infra/environments/${{ inputs.ENV }}/stacks/cloudwatch
+          cd infra/environments/${{ github.event.inputs.ENV }}/stacks/cloudwatch
           terraform init -reconfigure \
             -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ inputs.ENV }}/platform-main/cloudwatch/terraform.tfstate" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/cloudwatch/terraform.tfstate" \
             -backend-config="region=${TF_REGION}" \
             -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
             -backend-config="encrypt=true"
-          terraform destroy -auto-approve -var-file="${{ inputs.ENV }}.tfvars"
+          terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
 
       # ---------- SSM ----------
       - name: Terraform Destroy SSM
         run: |
           set -euo pipefail
-          cd infra/environments/${{ inputs.ENV }}/stacks/ssm
+          cd infra/environments/${{ github.event.inputs.ENV }}/stacks/ssm
           terraform init -reconfigure \
             -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ inputs.ENV }}/platform-main/ssm/terraform.tfstate" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/ssm/terraform.tfstate" \
             -backend-config="region=${TF_REGION}" \
             -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
             -backend-config="encrypt=true"
-          terraform destroy -auto-approve -var-file="${{ inputs.ENV }}.tfvars"
+          terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
 
       # ---------- ECR ----------
-      # Repos often fail to delete if images exist; continue-on-error prevents blocking teardown
       - name: Terraform Destroy ECR
         continue-on-error: true
         run: |
           set -euo pipefail
-          cd infra/environments/${{ inputs.ENV }}/stacks/ecr
+          cd infra/environments/${{ github.event.inputs.ENV }}/stacks/ecr
           terraform init -reconfigure \
             -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ inputs.ENV }}/platform-main/ecr/terraform.tfstate" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/ecr/terraform.tfstate" \
             -backend-config="region=${TF_REGION}" \
             -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
             -backend-config="encrypt=true"
-          terraform destroy -auto-approve -var-file="${{ inputs.ENV }}.tfvars"
+          terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
 
       # ---------- REST API ----------
       - name: Terraform Destroy REST API
         run: |
           set -euo pipefail
-          cd infra/environments/${{ inputs.ENV }}/stacks/rest-api
+          cd infra/environments/${{ github.event.inputs.ENV }}/stacks/rest-api
           terraform init -reconfigure \
             -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ inputs.ENV }}/platform-main/rest-api/terraform.tfstate" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/rest-api/terraform.tfstate" \
             -backend-config="region=${TF_REGION}" \
             -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
             -backend-config="encrypt=true"
-          terraform destroy -auto-approve -var-file="${{ inputs.ENV }}.tfvars"
+          terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
 
       # ---------- NLB ----------
       - name: Terraform Destroy NLB
         run: |
           set -euo pipefail
-          cd infra/environments/${{ inputs.ENV }}/stacks/nlb
+          cd infra/environments/${{ github.event.inputs.ENV }}/stacks/nlb
           terraform init -reconfigure \
             -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ inputs.ENV }}/platform-main/nlb/terraform.tfstate" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/nlb/terraform.tfstate" \
             -backend-config="region=${TF_REGION}" \
             -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
             -backend-config="encrypt=true"
-          terraform destroy -auto-approve -var-file="${{ inputs.ENV }}.tfvars"
+          terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
 
       # ---------- COMPUTE ----------
       - name: Terraform Destroy Compute
         run: |
           set -euo pipefail
-          cd infra/environments/${{ inputs.ENV }}/stacks/compute
+          cd infra/environments/${{ github.event.inputs.ENV }}/stacks/compute
           terraform init -reconfigure \
             -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ inputs.ENV }}/platform-main/compute/terraform.tfstate" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/compute/terraform.tfstate" \
             -backend-config="region=${TF_REGION}" \
             -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
             -backend-config="encrypt=true"
-          terraform destroy -auto-approve -var-file="${{ inputs.ENV }}.tfvars"
+          terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"
 
       # ---------- NETWORK ----------
       - name: Terraform Destroy Network
         run: |
           set -euo pipefail
-          cd infra/environments/${{ inputs.ENV }}/stacks/network
+          cd infra/environments/${{ github.event.inputs.ENV }}/stacks/network
           terraform init -reconfigure \
             -backend-config="bucket=${TF_BUCKET}" \
-            -backend-config="key=${{ inputs.ENV }}/platform-main/network/terraform.tfstate" \
+            -backend-config="key=${{ github.event.inputs.ENV }}/platform-main/network/terraform.tfstate" \
             -backend-config="region=${TF_REGION}" \
             -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
             -backend-config="encrypt=true"
-          terraform destroy -auto-approve -var-file="${{ inputs.ENV }}.tfvars"
+          terraform destroy -auto-approve -var-file="${{ github.event.inputs.ENV }}.tfvars"

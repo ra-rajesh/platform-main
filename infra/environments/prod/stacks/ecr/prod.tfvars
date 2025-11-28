@@ -1,5 +1,5 @@
-env_name             = "prod"
-region               = "ap-south-1"
+env_name    = "prod"
+region      = "ap-south-1"
 repositories         = {}
 image_tag_mutability = "MUTABLE"
 scan_on_push         = true

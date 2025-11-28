@@ -10,7 +10,7 @@ output "instance_profile_name" {
 
 output "iam_role_name" {
   description = "IAM role name used by the instance"
-  value       = module.iam_ssm.iam_role_name
+  value       = module.iam_ssm.role_name
 }
 
 output "instance_id" {

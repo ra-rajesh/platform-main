@@ -1,6 +1,6 @@
-env_name = "prod"
-region   = "ap-south-1"
-nlb_name = "prod-platform-main-nlb"
+env_name    = "prod"
+region      = "ap-south-1"
+nlb_name = "prod-nlb"
 
 network_state_key = "prod/platform-main/network/terraform.tfstate"
 compute_state_key = "prod/platform-main/compute/terraform.tfstate"
