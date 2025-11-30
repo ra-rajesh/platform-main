@@ -1,5 +1,5 @@
-env_name = "stage"
-region   = "ap-south-1"
+env_name    = "stage"
+region      = "ap-south-1"
 
 cwagent_ssm_param_path = "/stage/platform_main/cloudwatch/agent-config"
 

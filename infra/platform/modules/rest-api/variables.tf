@@ -29,7 +29,7 @@ variable "log_retention_days" {
 
 variable "logging_level" {
   type    = string
-  default = "ERROR" # OFF | ERROR | INFO
+  default = "INFO"
 }
 
 variable "data_trace_enabled" {
@@ -44,12 +44,12 @@ variable "metrics_enabled" {
 
 variable "throttling_burst_limit" {
   type    = number
-  default = 0 # 0 = default
+  default = 0
 }
 
 variable "throttling_rate_limit" {
   type    = number
-  default = 0 # 0 = default
+  default = 0
 }
 
 variable "vpc_link_target_arns" {

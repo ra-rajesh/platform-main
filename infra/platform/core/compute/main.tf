@@ -21,20 +21,19 @@ locals {
 module "sg_app" {
   source        = "../../modules/sg"
   vpc_id        = var.vpc_id
-  sg_name       = var.sg-name
+  sg_name       = var.sg_name
   ingress_ports = var.app_ports
   ingress_cidrs = var.ingress_cidrs
 }
 
 module "iam_ssm" {
-  source                         = "../../modules/iam/ssm_instance"
-  name                           = "${var.env_name}-ec2-ssm"
-  tags                           = var.tags
-  existing_role_name             = var.existing_iam_role_name
-  existing_instance_profile_name = var.existing_instance_profile_name
-  enable_ecr_pull                = true
-  s3_backup_arn                  = var.s3_backup_arn
-  ssm_parameter_arns             = var.ssm_parameter_arns
+  source                = "../../modules/iam/ssm_instance"
+  role_name             = var.ec2_ssm_role_name
+  instance_profile_name = var.ec2_ssm_profile_name
+  tags                  = var.tags
+  enable_ecr_pull    = true
+  s3_backup_arn      = var.s3_backup_arn
+  ssm_parameter_arns = var.ssm_parameter_arns
 }
 
 module "ec2" {

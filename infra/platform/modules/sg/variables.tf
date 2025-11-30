@@ -19,7 +19,6 @@ variable "ingress_ports" {
   description = "List of TCP ports to allow inbound"
 }
 
-# Apply these CIDRs to ALL ports above. Change to your office IP(s) for tighter security.
 variable "ingress_cidrs" {
   type        = list(string)
   description = "IPv4 CIDRs allowed inbound for the listed ports"

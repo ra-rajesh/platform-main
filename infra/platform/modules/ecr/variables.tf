@@ -21,7 +21,6 @@ variable "encryption_type" {
   default     = "AES256"
 }
 
-# Optional JSON lifecycle policy (null = disabled)
 variable "lifecycle_policy_json" {
   type        = string
   description = "Lifecycle policy JSON (optional)"

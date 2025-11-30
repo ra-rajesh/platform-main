@@ -1,5 +1,5 @@
-env_name                 = "stage"
-region                   = "ap-south-1"
+env_name    = "stage"
+region      = "ap-south-1"
 vpc_name                 = "stage-vpc"
 vpc_cidr                 = "10.10.0.0/16"
 azs                      = ["ap-south-1a", "ap-south-1b", "ap-south-1c"]

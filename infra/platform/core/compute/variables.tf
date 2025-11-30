@@ -25,7 +25,7 @@ variable "ec2_name" {
   description = "Name tag for the EC2 instance"
 }
 
-variable "sg-name" {
+variable "sg_name" {
   type        = string
   description = "Security group name"
 }
@@ -80,13 +80,6 @@ variable "docker_artifact_bucket" {
   description = "Optional S3 bucket for Docker artifacts/backups; null to skip."
 }
 
-# Reuse existing IAM names (or module will create)
-variable "existing_iam_role_name" {
-  type        = string
-  default     = null
-  description = "Existing IAM role name for EC2; null to let the module create one."
-}
-
 variable "tags" {
   type        = map(string)
   default     = {}
@@ -105,12 +98,6 @@ variable "s3_backup_arn" {
   default     = ""
 }
 
-variable "existing_instance_profile_name" {
-  type        = string
-  default     = null
-  description = "Reuse an existing profile (skip creation) if set"
-}
-
 variable "tf_state_region" {
   type        = string
   description = "Region of the S3 bucket/DynamoDB used for remote state and lock"
@@ -126,3 +113,12 @@ variable "allow_no_ingress" {
   description = "If true, allows app_ports to be empty (no inbound rules)."
   default     = false
 }
+
+variable "ec2_ssm_role_name" {
+  type = string
+}
+
+variable "ec2_ssm_profile_name" {
+  type = string
+}
+

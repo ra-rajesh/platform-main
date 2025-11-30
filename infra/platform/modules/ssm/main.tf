@@ -18,7 +18,7 @@ resource "aws_ssm_parameter" "kv" {
   for_each       = local.values_nonempty
   name           = "${var.path_prefix}/${each.key}"
   type           = "String"
-  insecure_value = each.value # v6: exactly one of value/insecure_value/value_wo
+  insecure_value = each.value
   overwrite      = var.overwrite
   tags           = var.tags
 

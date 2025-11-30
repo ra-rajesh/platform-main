@@ -36,7 +36,7 @@ locals {
 
 module "publisher" {
   source      = "../../modules/ssm"
-  path_prefix = var.base_prefix # legacy name (modules/ssm expects this)
+  path_prefix = var.base_prefix
   values      = local.values
   overwrite   = var.overwrite
   tags        = local.tags

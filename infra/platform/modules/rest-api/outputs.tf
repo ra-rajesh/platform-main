@@ -32,7 +32,6 @@ output "api_execution_logs_group" {
   value       = aws_cloudwatch_log_group.api_execution_logs.name
 }
 
-# (Optional) ARNs for convenience
 output "api_logs_group_arn" {
   value = aws_cloudwatch_log_group.api_logs.arn
 }

@@ -1,21 +1,21 @@
 variable "name" {
-  type = string
+  type    = string
+  default = null
+}
+
+variable "role_name" {
+  type        = string
+  description = "Exact IAM role name to create (e.g., test-ec2-ssm-role)"
+}
+
+variable "instance_profile_name" {
+  type        = string
+  description = "Exact IAM instance profile name to create (e.g., test-ec2-ssm-instance-profile)"
 }
 
 variable "tags" {
   type    = map(string)
   default = {}
-}
-
-# Reuse existing IAM instead of creating (optional)
-variable "existing_role_name" {
-  type    = string
-  default = null
-}
-
-variable "existing_instance_profile_name" {
-  type    = string
-  default = null
 }
 
 variable "s3_backup_arn" {

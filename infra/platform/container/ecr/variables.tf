@@ -6,7 +6,6 @@ variable "region" {
   type = string
 }
 
-# Map of logical key => repository name (final name in ECR)
 # Example: { "idlms-reuse" = "idlms-reuse", "vitalreg-app" = "vitalreg-app" }
 variable "repositories" {
   type        = map(string)
@@ -28,14 +27,12 @@ variable "encryption_type" {
   default = "AES256"
 }
 
-# Optional single policy JSON applied to all repos (null = no policy)
 variable "lifecycle_policy_json" {
   type    = string
   default = null
 }
 
 # If set, write SSM pointers here:
-# /<ssm_prefix>/ecr/<env>/<repo>/repository_url (and arn/name)
 variable "ssm_prefix" {
   type        = string
   default     = ""

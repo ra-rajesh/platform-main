@@ -1,6 +1,6 @@
-env_name = "stage"
-region   = "ap-south-1"
-nlb_name = "stage-platform-main-nlb"
+env_name    = "stage"
+region      = "ap-south-1"
+nlb_name = "stage-nlb"
 
 network_state_key = "stage/platform-main/network/terraform.tfstate"
 compute_state_key = "stage/platform-main/compute/terraform.tfstate"
