@@ -81,7 +81,7 @@
                 "s3:GetBucketLocation",
                 "s3:ListBucketMultipartUploads"
             ],
-            "Resource": "arn:aws:s3:::{{env.name}}-btl-platform-main-repo-backend-tfstate-{{aws.account-id}}"
+            "Resource": "arn:aws:s3:::{{aws.env}}-btl-platform-main-repo-backend-tfstate-{{aws.account-id}}"
         },
         {
             "Sid": "TfStateObjectsRWNewPlatformMain",
@@ -94,7 +94,7 @@
                 "s3:AbortMultipartUpload",
                 "s3:ListMultipartUploadParts"
             ],
-            "Resource": "arn:aws:s3:::{{env.name}}-btl-platform-main-repo-backend-tfstate-{{aws.account-id}}/*"
+            "Resource": "arn:aws:s3:::{{aws.env}}-btl-platform-main-repo-backend-tfstate-{{aws.account-id}}/*"
         },
         {
             "Sid": "EcrAuth",
